@@ -75,10 +75,10 @@ spec:
               value: "http://48.217.130.84"
 
             - name: USERS_LAST_PATH
-              value: "/api/v2/books/last"
+              value: "/api/v2/users/last"
 
             - name: USERS_LIST_PATH
-              value: "/api/books"
+              value: "/api/users"
 
             - name: ENTRENADOR_API_URL
               value: "https://pokenetes-api-prod.onrender.com"

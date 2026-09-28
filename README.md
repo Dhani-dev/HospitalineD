@@ -67,8 +67,8 @@ DB_NAME=hospitaline
 DB_USER=postgres
 DB_PASSWORD=...
 USERS_API_URL=http://48.217.130.84
-USERS_LAST_PATH=/api/v2/books/last
-USERS_LIST_PATH=/api/books
+USERS_LAST_PATH=/api/v2/users/last
+USERS_LIST_PATH=/api/users
 ENTRENADOR_API_URL=https://pokenetes-api-prod.onrender.com
 ENTRENADOR_LAST_PATH=/api/v2/entrenador/last
 ENTRENADOR_LIST_PATH=/entrenador
@@ -82,7 +82,7 @@ PEER_CACHE_TTL_SECONDS=30
 
 ## API v2 y reuso entre nubes
 
-Hospitaline no duplica la lógica de los compañeros: consume por HTTP el último `books` de [biblio-express](https://github.com/PholCast/biblio-express) (Azure) y el último `entrenador` de [Pokenetes-API](https://github.com/Enedev/Pokenetes-API) (AWS).
+Hospitaline no duplica la lógica de los compañeros: consume por HTTP el último `users` de [biblio-express](https://github.com/PholCast/biblio-express) (Azure) y el último `entrenador` de [Pokenetes-API](https://github.com/Enedev/Pokenetes-API) (AWS).
 
 ### GET /api/v2/{entidad}/last
 
@@ -118,7 +118,7 @@ curl http://localhost:3000/api/v2/hospitals/UUID
   "entity": "hospital",
   "local": { "id": "...", "name": "Central" },
   "peers": {
-    "biblio-express": { "live": true, "entity": "books", "data": {} },
+    "biblio-express": { "live": true, "entity": "users", "data": {} },
     "pokenetes": { "live": true, "entity": "entrenador", "data": {} }
   }
 }
@@ -136,7 +136,7 @@ Este es el artefacto de la nube GCP (Integrante B): Redis con TTL e invalidació
 |---|---|---|---|
 | Hospital / doctor / paciente por id | `hospitaline:local:{entidad}:{id}` | `CACHE_TTL_SECONDS` (60s) | POST, PUT, PATCH, DELETE |
 | Último registro local | `hospitaline:local:{entidad}:last` | 60s | POST, PUT, PATCH, DELETE |
-| `books` de biblio-express | `hospitaline:peer:biblio-express:books:last` | `PEER_CACHE_TTL_SECONDS` (30s) | solo TTL |
+| `users` de biblio-express | `hospitaline:peer:biblio-express:users:last` | `PEER_CACHE_TTL_SECONDS` (30s) | solo TTL |
 | `entrenador` de Pokenetes | `hospitaline:peer:pokenetes:entrenador:last` | 30s | solo TTL |
 
 Los fallos de un peer (`live: false`) **no** se cachean, para reintentar en la siguiente petición. Si Redis no está configurado, la API usa una caché en memoria del proceso.
@@ -360,11 +360,11 @@ Las rutas están agrupadas bajo:
 | `GET` | `/api/v1/hospitals` | Listar hospitales |
 | `GET` | `/api/v1/hospitals/:id` | Obtener hospital |
 | `GET` | `/api/v2/hospitals/last` | Último hospital local, sin peers |
-| `GET` | `/api/v2/hospitals/:id` | Hospital local + last de `books` y `entrenador` |
+| `GET` | `/api/v2/hospitals/:id` | Hospital local + last de `users` y `entrenador` |
 | `GET` | `/api/v2/doctors/last` | Último doctor local, sin peers |
-| `GET` | `/api/v2/doctors/:id` | Doctor local + last de `books` y `entrenador` |
+| `GET` | `/api/v2/doctors/:id` | Doctor local + last de `users` y `entrenador` |
 | `GET` | `/api/v2/pacientes/last` | Último paciente local, sin peers |
-| `GET` | `/api/v2/pacientes/:id` | Paciente local + last de `books` y `entrenador` |
+| `GET` | `/api/v2/pacientes/:id` | Paciente local + last de `users` y `entrenador` |
 | `POST` | `/api/v1/hospitals` | Crear hospital |
 | `PUT` | `/api/v1/hospitals/:id` | Reemplazar hospital |
 | `PATCH` | `/api/v1/hospitals/:id` | Actualizar parcialmente |
