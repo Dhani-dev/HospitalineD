@@ -2,7 +2,7 @@ import { EntityV2Response, LocalEntityName, PeerResponse } from "../types/entiti
 import { ExternalEntitiesClient } from "./externalEntitiesClient";
 
 const OFFLINE_PEERS = {
-  "biblio-express": { live: false, entity: "books", data: null } satisfies PeerResponse,
+  "biblio-express": { live: false, entity: "users", data: null } satisfies PeerResponse,
   pokenetes: { live: false, entity: "entrenador", data: null } satisfies PeerResponse
 };
 

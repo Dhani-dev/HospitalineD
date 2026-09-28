@@ -5,10 +5,10 @@ import { MemoryCacheClient } from "../../src/cache/memoryCacheClient";
 describe("CachedExternalEntitiesClient", () => {
   it("caches live peer responses and skips a second HTTP call", async () => {
     const inner = {
-      getLastBook: vi.fn().mockResolvedValue({
+      getLastUser: vi.fn().mockResolvedValue({
         live: true,
-        entity: "books",
-        data: { id: "b1" }
+        entity: "users",
+        data: { id: "u1" }
       }),
       getLastEntrenador: vi.fn().mockResolvedValue({
         live: true,
@@ -27,16 +27,16 @@ describe("CachedExternalEntitiesClient", () => {
     const second = await client.getPeers("trace-2");
 
     expect(first).toEqual(second);
-    expect(inner.getLastBook).toHaveBeenCalledTimes(1);
+    expect(inner.getLastUser).toHaveBeenCalledTimes(1);
     expect(inner.getLastEntrenador).toHaveBeenCalledTimes(1);
   });
 
   it("does not cache offline peers so the next request retries", async () => {
     const inner = {
-      getLastBook: vi
+      getLastUser: vi
         .fn()
-        .mockResolvedValueOnce({ live: false, entity: "books", data: null })
-        .mockResolvedValueOnce({ live: true, entity: "books", data: { id: "b2" } }),
+        .mockResolvedValueOnce({ live: false, entity: "users", data: null })
+        .mockResolvedValueOnce({ live: true, entity: "users", data: { id: "u2" } }),
       getLastEntrenador: vi.fn().mockResolvedValue({
         live: false,
         entity: "entrenador",
@@ -50,11 +50,11 @@ describe("CachedExternalEntitiesClient", () => {
       60
     );
 
-    const first = await client.getLastBook("t1");
-    const second = await client.getLastBook("t2");
+    const first = await client.getLastUser("t1");
+    const second = await client.getLastUser("t2");
 
     expect(first.live).toBe(false);
-    expect(second).toEqual({ live: true, entity: "books", data: { id: "b2" } });
-    expect(inner.getLastBook).toHaveBeenCalledTimes(2);
+    expect(second).toEqual({ live: true, entity: "users", data: { id: "u2" } });
+    expect(inner.getLastUser).toHaveBeenCalledTimes(2);
   });
 });
