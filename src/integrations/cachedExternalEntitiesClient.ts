@@ -10,10 +10,10 @@ export class CachedExternalEntitiesClient implements ExternalEntitiesClient {
     private readonly ttlSeconds: number
   ) {}
 
-  getLastUser(traceId: string): Promise<PeerResponse> {
+  getLastBook(traceId: string): Promise<PeerResponse> {
     return this.readPeer(
-      cacheKeys.peerLast("biblio-express", "users"),
-      () => this.inner.getLastUser(traceId)
+      cacheKeys.peerLast("biblio-express", "books"),
+      () => this.inner.getLastBook(traceId)
     );
   }
 
@@ -25,13 +25,13 @@ export class CachedExternalEntitiesClient implements ExternalEntitiesClient {
   }
 
   async getPeers(traceId: string) {
-    const [users, entrenador] = await Promise.all([
-      this.getLastUser(traceId),
+    const [books, entrenador] = await Promise.all([
+      this.getLastBook(traceId),
       this.getLastEntrenador(traceId)
     ]);
 
     return {
-      "biblio-express": users,
+      "biblio-express": books,
       pokenetes: entrenador
     };
   }

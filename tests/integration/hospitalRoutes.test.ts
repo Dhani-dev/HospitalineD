@@ -36,7 +36,7 @@ describe("Hospital routes", () => {
             entity: "hospital",
             local,
             peers: {
-              "biblio-express": { live: false, entity: "users", data: null },
+              "biblio-express": { live: false, entity: "books", data: null },
               pokenetes: { live: false, entity: "entrenador", data: null }
             }
           };

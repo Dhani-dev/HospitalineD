@@ -59,7 +59,7 @@ describe("HospitalService", () => {
     } as any;
     const externalEntitiesClient = {
       getPeers: vi.fn().mockResolvedValue({
-        "biblio-express": { live: true, entity: "users", data: { id: 1, name: "User" } },
+        "biblio-express": { live: true, entity: "books", data: { id: 1, name: "User" } },
         pokenetes: { live: true, entity: "entrenador", data: { id: "1", nombre: "Ash" } }
       })
     };
@@ -74,7 +74,7 @@ describe("HospitalService", () => {
       entity: "hospital",
       local: hospital,
       peers: {
-        "biblio-express": { live: true, entity: "users", data: { id: 1, name: "User" } },
+        "biblio-express": { live: true, entity: "books", data: { id: 1, name: "User" } },
         pokenetes: { live: true, entity: "entrenador", data: { id: "1", nombre: "Ash" } }
       }
     });

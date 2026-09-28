@@ -9,7 +9,7 @@ export interface PeerTarget {
 }
 
 export interface ExternalEntitiesClient {
-  getLastUser(traceId: string): Promise<PeerResponse>;
+  getLastBook(traceId: string): Promise<PeerResponse>;
   getLastEntrenador(traceId: string): Promise<PeerResponse>;
   getPeers(traceId: string): Promise<{
     "biblio-express": PeerResponse;
@@ -91,13 +91,13 @@ function offlinePeer(entity: PeerResponse["entity"]): PeerResponse {
 
 export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
   constructor(
-    private readonly users: PeerTarget,
+    private readonly biblio: PeerTarget,
     private readonly entrenador: PeerTarget,
     private readonly fetcher: FetchLike = fetch
   ) {}
 
-  getLastUser(traceId: string): Promise<PeerResponse> {
-    return this.getLastPeer("biblio-express", "users", this.users, traceId);
+  getLastBook(traceId: string): Promise<PeerResponse> {
+    return this.getLastPeer("biblio-express", "books", this.biblio, traceId);
   }
 
   getLastEntrenador(traceId: string): Promise<PeerResponse> {
@@ -105,13 +105,13 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
   }
 
   async getPeers(traceId: string) {
-    const [users, entrenador] = await Promise.all([
-      this.getLastUser(traceId),
+    const [books, entrenador] = await Promise.all([
+      this.getLastBook(traceId),
       this.getLastEntrenador(traceId)
     ]);
 
     return {
-      "biblio-express": users,
+      "biblio-express": books,
       pokenetes: entrenador
     };
   }

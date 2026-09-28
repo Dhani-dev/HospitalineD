@@ -12,7 +12,7 @@ export type LocalEntityName = "hospital" | "doctor" | "paciente";
 
 export type PeerResponse = {
   live: boolean;
-  entity: "users" | "entrenador";
+  entity: "books" | "entrenador";
   data: Record<string, unknown> | null;
 };
 

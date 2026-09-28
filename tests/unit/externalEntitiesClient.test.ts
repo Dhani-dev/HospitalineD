@@ -26,7 +26,7 @@ describe("HttpExternalEntitiesClient", () => {
       json: async () => ({ local: { id: "e1", nombre: "Ash" } })
     });
     const client = new HttpExternalEntitiesClient(
-      { baseUrl: "", lastPath: "/api/v2/users/last", listPath: "/api/users" },
+      { baseUrl: "", lastPath: "/api/v2/books/last", listPath: "/api/books" },
       {
         baseUrl: "https://pokenetes.example.com",
         lastPath: "/api/v2/entrenador/last",
@@ -39,7 +39,7 @@ describe("HttpExternalEntitiesClient", () => {
 
     expect(peers["biblio-express"]).toEqual({
       live: false,
-      entity: "users",
+      entity: "books",
       data: null
     });
     expect(peers.pokenetes).toEqual({
@@ -64,21 +64,21 @@ describe("HttpExternalEntitiesClient", () => {
         json: async () => [{ id: "u1" }, { id: "u2", name: "Ada" }]
       });
     const client = new HttpExternalEntitiesClient(
-      { baseUrl: "https://biblio.example.com", lastPath: "/api/v2/users/last", listPath: "/api/users" },
+      { baseUrl: "https://biblio.example.com", lastPath: "/api/v2/books/last", listPath: "/api/books" },
       { baseUrl: "", lastPath: "/api/v2/entrenador/last", listPath: "/entrenador" },
       fetcher
     );
 
-    const user = await client.getLastUser("trace-1");
+    const book = await client.getLastBook("trace-1");
 
-    expect(user).toEqual({
+    expect(book).toEqual({
       live: true,
-      entity: "users",
+      entity: "books",
       data: { id: "u2", name: "Ada" }
     });
     expect(fetcher).toHaveBeenNthCalledWith(
       2,
-      "https://biblio.example.com/api/users",
+      "https://biblio.example.com/api/books",
       expect.anything()
     );
   });
@@ -86,7 +86,7 @@ describe("HttpExternalEntitiesClient", () => {
   it("marks the peer offline when the remote call fails", async () => {
     const fetcher = vi.fn().mockRejectedValue(new Error("timeout"));
     const client = new HttpExternalEntitiesClient(
-      { baseUrl: "https://biblio.example.com", lastPath: "/api/v2/users/last", listPath: "/api/users" },
+      { baseUrl: "https://biblio.example.com", lastPath: "/api/v2/books/last", listPath: "/api/books" },
       { baseUrl: "https://pokenetes.example.com", lastPath: "/last", listPath: "/list" },
       fetcher
     );
