@@ -8,6 +8,7 @@ collectorCommon:
       extraAttributes:
         environment: production
         cloud: gcp
+        service-discovery: "true"
 
 collectors:
   alloy:
