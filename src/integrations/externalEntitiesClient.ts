@@ -1,3 +1,5 @@
+import { trace } from "@opentelemetry/api";
+import { tracedHeaders } from "../http/trace";
 import { PeerResponse } from "../types/entities";
 
 export type ExternalEntity = Record<string, unknown>;
@@ -129,6 +131,39 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
     const lastUrl = joinUrl(target.baseUrl, target.lastPath);
     const listUrl = joinUrl(target.baseUrl, target.listPath);
 
+    const tracer = trace.getTracer("hospitaline");
+
+    return tracer.startActiveSpan(
+      `peer.${service}`,
+      {
+        attributes: {
+          "peer.service": service,
+          "peer.entity": entity,
+          "cloud.provider": service === "biblio-express" ? "azure" : "aws"
+        }
+      },
+      async (span) => {
+        try {
+          const result = await this.fetchLastPeer(service, entity, lastUrl, listUrl, traceId);
+          span.setAttribute("peer.live", result.live);
+          return result;
+        } catch (error) {
+          span.recordException(error as Error);
+          throw error;
+        } finally {
+          span.end();
+        }
+      }
+    );
+  }
+
+  private async fetchLastPeer(
+    service: string,
+    entity: PeerResponse["entity"],
+    lastUrl: string,
+    listUrl: string,
+    traceId: string
+  ): Promise<PeerResponse> {
     try {
       const lastResponse = await this.request(lastUrl, traceId);
       if (lastResponse.ok) {
@@ -166,10 +201,7 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
 
   private request(url: string, traceId: string): Promise<Response> {
     return this.fetcher(url, {
-      headers: {
-        Accept: "application/json",
-        "x-trace-id": traceId
-      },
+      headers: tracedHeaders(traceId),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
   }
