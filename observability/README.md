@@ -49,13 +49,25 @@ Cola (`mensajes pendientes`): artefacto de otra nube; no se inventa aquí.
 
 GKE ya manda CPU/memoria a **Cloud Monitoring**. Los logs JSON de `/api/v2` van a **Cloud Logging** con `trace_id` y `status_code`.
 
-Alerta (aplicar una vez, canal de email en la consola):
+Alerta **Hospitaline API 5xx** ya está creada. En Cloud Monitoring → Alerting → Notification channels crea un email y asígnalo a esa política. Para la sustentación: provoca un 500 y espera el aviso.
+
+## Alloy → Grafana Cloud (métricas nativas de GCP)
+
+Identidad lista (sin clave JSON):
+
+- Namespace `observability`
+- KSA `alloy` → GSA `grafana-cloud-monitoring@project-39d0c894-3885-4211-89d.iam.gserviceaccount.com`
+- Workload Identity vinculado
+
+Alloy **aún no está instalado**. El dueño de Grafana debe enviar el config del asistente GCP Metrics (Kubernetes, no Debian). Entonces:
 
 ```bash
-gcloud monitoring policies create --policy-from-file=observability/gcp-alert-policy.json
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+helm upgrade --install alloy grafana/alloy -n observability -f k8s/observability/alloy-values.yaml
 ```
 
-En Cloud Monitoring → Alerting → Notification channels crea un email y asócialo a la política. Para la sustentación: provoca un 500 y espera el aviso.
+Pega su config en `alloy.configMap.content` de ese values (deja `serviceAccount.name: alloy`). El clúster es Autopilot: no uses DaemonSet.
 
 ## Código
 
