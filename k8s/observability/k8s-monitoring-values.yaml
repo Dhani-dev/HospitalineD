@@ -1,0 +1,26 @@
+# Grafana k8s-monitoring on GKE Autopilot.
+# The Cloud wizard still emits daemonset/host-network/root even if you pick Autopilot.
+# Password is NOT stored here — pass it with --set-string when you install.
+
+collectorCommon:
+  alloy:
+    remoteConfig:
+      extraAttributes:
+        environment: production
+        cloud: gcp
+
+collectors:
+  alloy:
+    presets: [clustered, statefulset]
+
+telemetryServices:
+  node-exporter:
+    deploy: false
+  kube-state-metrics:
+    deploy: true
+  beyla:
+    deploy: false
+  opencost:
+    deploy: false
+  sdkInjector:
+    deploy: false
