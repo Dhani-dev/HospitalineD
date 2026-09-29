@@ -78,7 +78,8 @@ CACHE_TTL_SECONDS=60
 PEER_CACHE_TTL_SECONDS=30
 ORCHESTRATOR_API_URL=
 OTEL_SERVICE_NAME=hospitaline-api
-OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-us-east-3.grafana.net/otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS=
 ```
 
@@ -140,9 +141,12 @@ Daniela no administra Grafana. Expone **`GET /metrics`** (Prometheus) para que e
 
 ```text
 OTEL_SERVICE_NAME=hospitaline-api
-OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-us-east-3.grafana.net/otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS=
 ```
+
+`OTEL_EXPORTER_OTLP_HEADERS` vive en el secreto `hospitaline-otel`, no en git.
 
 ## Caché distribuida
 
