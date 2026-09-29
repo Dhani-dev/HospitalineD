@@ -1,11 +1,14 @@
 import { propagation } from "@opentelemetry/api";
+import { logs } from "@opentelemetry/api-logs";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
+import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 
 let started = false;
 
@@ -16,7 +19,7 @@ export function isTelemetryEnabled(): boolean {
   );
 }
 
-export function startTelemetry(serviceName: string): void {
+export function startTelemetry(serviceName = "hospitaline-api"): void {
   if (started || !isTelemetryEnabled()) {
     return;
   }
@@ -29,6 +32,7 @@ export function startTelemetry(serviceName: string): void {
       "service.name": serviceName,
       "service.namespace": "hospitaline",
       "cloud.provider": "gcp",
+      "cloud.platform": "gcp_kubernetes_engine",
       "k8s.namespace.name": process.env.POD_NAMESPACE ?? "hospitaline-prod",
       "k8s.pod.name": process.env.POD_NAME ?? "local"
     }),
@@ -37,12 +41,19 @@ export function startTelemetry(serviceName: string): void {
       exporter: new OTLPMetricExporter(),
       exportIntervalMillis: 15000
     }),
+    logRecordProcessors: [
+      new BatchLogRecordProcessor({
+        exporter: new OTLPLogExporter()
+      })
+    ],
     instrumentations: [
       getNodeAutoInstrumentations({
-        "@opentelemetry/instrumentation-fs": { enabled: false }
+        "@opentelemetry/instrumentation-fs": { enabled: false },
+        "@opentelemetry/instrumentation-http": { enabled: true }
       })
     ]
   });
 
   sdk.start();
+  logs.getLogger("hospitaline-api-gcp");
 }

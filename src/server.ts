@@ -1,7 +1,7 @@
 import { buildApp } from "./app";
 import { createDefaultServices } from "./bootstrap/createServices";
 import { getEnvConfig } from "./config/env";
-import { startTelemetry } from "./telemetry";
+import { startTelemetry } from "./observability/telemetry";
 
 const { port } = getEnvConfig();
 

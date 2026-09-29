@@ -4,16 +4,14 @@ import { queryMethodPlugin } from "./plugins/queryMethod";
 import { doctorRoutes } from "./routes/doctorRoutes";
 import { hospitalRoutes } from "./routes/hospitalRoutes";
 import { pacienteRoutes } from "./routes/pacienteRoutes";
-import { registerTraceId } from "./plugins/traceId";
-import { observeRequests } from "./http/trace";
+import { registerObservability } from "./observability";
 import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
 
 export function buildApp(services: ServiceContainer) {
   const app = Fastify({ logger: true });
 
   app.register(queryMethodPlugin);
-  registerTraceId(app);
-  observeRequests(app);
+  registerObservability(app);
 
   app.get("/health", async () => {
     const cache = services.cache;

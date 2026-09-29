@@ -1,5 +1,5 @@
 import { trace } from "@opentelemetry/api";
-import { tracedHeaders } from "../http/trace";
+import { tracedHeaders } from "../observability";
 import { PeerResponse } from "../types/entities";
 
 export type ExternalEntity = Record<string, unknown>;
