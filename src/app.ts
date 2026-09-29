@@ -5,17 +5,27 @@ import { doctorRoutes } from "./routes/doctorRoutes";
 import { hospitalRoutes } from "./routes/hospitalRoutes";
 import { pacienteRoutes } from "./routes/pacienteRoutes";
 import { registerTraceId } from "./plugins/traceId";
+import { observeRequests } from "./http/trace";
+import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
 
 export function buildApp(services: ServiceContainer) {
   const app = Fastify({ logger: true });
 
   app.register(queryMethodPlugin);
   registerTraceId(app);
+  observeRequests(app);
 
   app.get("/health", async () => {
     const cache = services.cache;
+    const telemetry = {
+      service: process.env.OTEL_SERVICE_NAME ?? "hospitaline-api",
+      otlp: Boolean(process.env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim()) &&
+        process.env.OTEL_SDK_DISABLED !== "true",
+      orchestrator: isOrchestratorConfigured() ? "configured" : "placeholder"
+    };
+
     if (!cache) {
-      return { status: "ok", cache: { backend: "disabled" } };
+      return { status: "ok", cache: { backend: "disabled" }, telemetry };
     }
 
     return {
@@ -23,7 +33,8 @@ export function buildApp(services: ServiceContainer) {
       cache: {
         ...cache.stats(),
         connected: await cache.ping()
-      }
+      },
+      telemetry
     };
   });
 

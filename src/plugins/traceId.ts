@@ -1,5 +1,6 @@
+import { context, propagation, trace } from "@opentelemetry/api";
 import { FastifyInstance } from "fastify";
-import { randomUUID } from "node:crypto";
+import { parseTraceparent, resolveTraceId } from "../http/trace";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -7,20 +8,27 @@ declare module "fastify" {
   }
 }
 
-export function resolveTraceId(headerValue: string | string[] | undefined): string {
-  if (typeof headerValue === "string" && headerValue.trim()) {
-    return headerValue.trim();
-  }
-
-  return randomUUID();
-}
+export { resolveTraceId };
 
 export function registerTraceId(fastify: FastifyInstance): void {
   fastify.addHook("onRequest", async (request, reply) => {
-    const traceId = resolveTraceId(request.headers["x-trace-id"]);
+    const extracted = propagation.extract(context.active(), request.headers);
+    const otelTraceId =
+      parseTraceparent(request.headers.traceparent) ??
+      trace.getSpan(extracted)?.spanContext().traceId;
+    const traceId = resolveTraceId(request.headers["x-trace-id"], otelTraceId);
 
     request.traceId = traceId;
     request.log = request.log.child({ traceId });
     reply.header("x-trace-id", traceId);
+
+    const outgoing: Record<string, string> = {};
+    propagation.inject(extracted, outgoing);
+    if (outgoing.traceparent) {
+      reply.header("traceparent", outgoing.traceparent);
+    }
+    if (outgoing.tracestate) {
+      reply.header("tracestate", outgoing.tracestate);
+    }
   });
 }
