@@ -5,6 +5,7 @@ import { doctorRoutes } from "./routes/doctorRoutes";
 import { hospitalRoutes } from "./routes/hospitalRoutes";
 import { pacienteRoutes } from "./routes/pacienteRoutes";
 import { registerObservability } from "./observability";
+import { metricsContentType, renderMetrics } from "./observability/metrics";
 import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
 
 export function buildApp(services: ServiceContainer) {
@@ -12,6 +13,11 @@ export function buildApp(services: ServiceContainer) {
 
   app.register(queryMethodPlugin);
   registerObservability(app);
+
+  app.get("/metrics", async (_request, reply) => {
+    reply.header("Content-Type", metricsContentType);
+    return renderMetrics();
+  });
 
   app.get("/health", async () => {
     const cache = services.cache;

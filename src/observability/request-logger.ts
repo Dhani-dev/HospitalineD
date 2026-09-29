@@ -1,6 +1,7 @@
 import { logs } from "@opentelemetry/api-logs";
 import { trace } from "@opentelemetry/api";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { recordHttpRequest } from "./metrics";
 
 export const httpLogger = logs.getLogger("hospitaline-api-gcp");
 
@@ -18,6 +19,13 @@ export function requestLogger(request: FastifyRequest, reply: FastifyReply): voi
   const started = request.otelStartNs ?? process.hrtime.bigint();
   const durationMs = Number(process.hrtime.bigint() - started) / 1_000_000;
   const spanContext = trace.getActiveSpan()?.spanContext();
+  const route = (request.routeOptions?.url ?? request.url.split("?")[0]).replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    ":id"
+  );
+  const traceId = request.traceId ?? spanContext?.traceId;
+
+  recordHttpRequest(request.method, route, reply.statusCode, durationMs / 1000);
 
   httpLogger.emit({
     severityText: reply.statusCode >= 500 ? "ERROR" : "INFO",
@@ -31,6 +39,22 @@ export function requestLogger(request: FastifyRequest, reply: FastifyReply): voi
       span_id: spanContext?.spanId
     }
   });
+
+  if (process.env.NODE_ENV !== "test") {
+    console.log(
+      JSON.stringify({
+        severity: reply.statusCode >= 500 ? "ERROR" : "INFO",
+        message: "HTTP request completed",
+        method: request.method,
+        path: request.url,
+        route,
+        status_code: reply.statusCode,
+        duration_ms: durationMs,
+        trace_id: traceId,
+        span_id: spanContext?.spanId
+      })
+    );
+  }
 }
 
 export function registerRequestLogger(app: FastifyInstance): void {
