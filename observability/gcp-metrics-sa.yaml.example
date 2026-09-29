@@ -1,0 +1,14 @@
+# Cuenta de servicio para Grafana Cloud → GCP Metrics.
+# No subas la key JSON. Crea la SA con los comandos de observability/README.md.
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: grafana-gcp-metrics
+spec:
+  displayName: Grafana Cloud GCP Metrics
+---
+# Roles mínimos (aplicar con gcloud si no usas Config Connector):
+#   roles/monitoring.viewer
+# Proyecto: project-39d0c894-3885-4211-89d
+# Cluster: hospitaline-gke
+# Namespace: hospitaline-prod

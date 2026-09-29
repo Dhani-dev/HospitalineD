@@ -1,0 +1,90 @@
+{
+  "uid": "hospitaline-gcp-metrics",
+  "title": "Hospitaline GCP Metrics",
+  "tags": ["hospitaline", "gcp", "seguimiento-2"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Paso 1: metricas de la nube",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Datasource: **Google Cloud Monitoring** (Connections → GCP Metrics). Proyecto `project-39d0c894-3885-4211-89d`, cluster `hospitaline-gke`, namespace `hospitaline-prod`. CPU y memoria del contenedor `hospitaline-api`. OpenTelemetry va en el segundo dashboard."
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU del contenedor (core-seconds)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "stackdriver", "uid": "${gcp}" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "metrics",
+          "metricQuery": {
+            "projectName": "project-39d0c894-3885-4211-89d",
+            "metricType": "kubernetes.io/container/cpu/core_usage_time",
+            "filters": [
+              "resource.label.cluster_name",
+              "=",
+              "hospitaline-gke",
+              "resource.label.namespace_name",
+              "=",
+              "hospitaline-prod",
+              "resource.label.container_name",
+              "=",
+              "hospitaline-api"
+            ],
+            "crossSeriesReducer": "REDUCE_SUM",
+            "perSeriesAligner": "ALIGN_RATE",
+            "alignmentPeriod": "60s"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memoria usada (bytes)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "stackdriver", "uid": "${gcp}" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "metrics",
+          "metricQuery": {
+            "projectName": "project-39d0c894-3885-4211-89d",
+            "metricType": "kubernetes.io/container/memory/used_bytes",
+            "filters": [
+              "resource.label.cluster_name",
+              "=",
+              "hospitaline-gke",
+              "resource.label.namespace_name",
+              "=",
+              "hospitaline-prod",
+              "resource.label.container_name",
+              "=",
+              "hospitaline-api"
+            ],
+            "crossSeriesReducer": "REDUCE_MEAN",
+            "perSeriesAligner": "ALIGN_MEAN",
+            "alignmentPeriod": "60s"
+          }
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "gcp",
+        "type": "datasource",
+        "query": "stackdriver",
+        "current": { "text": "Google Cloud Monitoring", "value": "stackdriver" }
+      }
+    ]
+  }
+}
