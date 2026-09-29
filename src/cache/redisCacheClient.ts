@@ -1,5 +1,6 @@
 import { createClient, RedisClientType } from "redis";
 import { CacheClient, CacheLookup, CacheStats } from "./cacheClient";
+import { recordCacheHit, recordCacheMiss } from "../observability/metrics";
 
 export class RedisCacheClient implements CacheClient {
   readonly backend = "redis" as const;
@@ -27,13 +28,16 @@ export class RedisCacheClient implements CacheClient {
       const raw = await this.client.get(key);
       if (raw === null) {
         this.misses += 1;
+        recordCacheMiss(this.backend);
         return { hit: false };
       }
 
       this.hits += 1;
+      recordCacheHit(this.backend);
       return { hit: true, value: JSON.parse(raw) as T };
     } catch {
       this.misses += 1;
+      recordCacheMiss(this.backend);
       return { hit: false };
     }
   }

@@ -1,4 +1,5 @@
 import { CacheClient, CacheLookup, CacheStats } from "./cacheClient";
+import { recordCacheHit, recordCacheMiss } from "../observability/metrics";
 
 type MemoryEntry = {
   expiresAt: number;
@@ -15,16 +16,19 @@ export class MemoryCacheClient implements CacheClient {
     const entry = this.store.get(key);
     if (!entry) {
       this.misses += 1;
+      recordCacheMiss(this.backend);
       return { hit: false };
     }
 
     if (entry.expiresAt <= Date.now()) {
       this.store.delete(key);
       this.misses += 1;
+      recordCacheMiss(this.backend);
       return { hit: false };
     }
 
     this.hits += 1;
+    recordCacheHit(this.backend);
     return { hit: true, value: JSON.parse(entry.value) as T };
   }
 
