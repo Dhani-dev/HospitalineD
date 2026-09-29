@@ -1,8 +1,11 @@
 import { buildApp } from "./app";
 import { createDefaultServices } from "./bootstrap/createServices";
 import { getEnvConfig } from "./config/env";
+import { startTelemetry } from "./telemetry";
 
 const { port } = getEnvConfig();
+
+startTelemetry(process.env.OTEL_SERVICE_NAME ?? "hospitaline-api");
 
 const app = buildApp(createDefaultServices());
 
