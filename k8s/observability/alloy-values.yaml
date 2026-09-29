@@ -1,0 +1,46 @@
+# Grafana Alloy on GKE Autopilot. Uses the existing KSA `alloy` (Workload Identity).
+# Do not helm install until Grafana Cloud pastes the GCP Metrics config into content below.
+# Keep ADC / Workload Identity. Never add a GCP service-account JSON key.
+
+controller:
+  type: deployment
+  replicas: 1
+  hostNetwork: false
+
+crds:
+  create: false
+
+alloy:
+  clustering:
+    enabled: false
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  configMap:
+    create: true
+    content: |
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // Paste the Alloy config from Grafana Cloud → GCP Metrics here.
+      // Authentication must stay on Application Default Credentials.
+
+serviceAccount:
+  create: false
+  name: alloy
+  automountServiceAccountToken: true
+
+configReloader:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 50Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
