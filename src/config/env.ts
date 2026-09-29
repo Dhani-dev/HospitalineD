@@ -21,6 +21,7 @@ export type EnvConfig = {
   redisPassword: string;
   cacheTtlSeconds: number;
   peerCacheTtlSeconds: number;
+  orchestratorApiUrl: string;
 };
 
 let cachedEnv: EnvConfig | null = null;
@@ -84,7 +85,8 @@ export function getEnvConfig(): EnvConfig {
     redisPort: Number(process.env.REDIS_PORT ?? 6379),
     redisPassword: process.env.REDIS_PASSWORD ?? "",
     cacheTtlSeconds: Number(process.env.CACHE_TTL_SECONDS ?? 60),
-    peerCacheTtlSeconds: Number(process.env.PEER_CACHE_TTL_SECONDS ?? 30)
+    peerCacheTtlSeconds: Number(process.env.PEER_CACHE_TTL_SECONDS ?? 30),
+    orchestratorApiUrl: optionalUrl(process.env.ORCHESTRATOR_API_URL)
   };
 
   return cachedEnv;

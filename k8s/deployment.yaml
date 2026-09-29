@@ -89,6 +89,34 @@ spec:
             - name: ENTRENADOR_LIST_PATH
               value: "/entrenador"
 
+            # Observabilidad Grafana Cloud. El header OTLP es secreto.
+            - name: OTEL_SERVICE_NAME
+              value: "hospitaline-api"
+
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: ""
+
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              valueFrom:
+                secretKeyRef:
+                  name: hospitaline-otel
+                  key: OTEL_EXPORTER_OTLP_HEADERS
+                  optional: true
+
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+            # Hueco: el orquestador de Pokenetes llama a Hospitaline, no al revés.
+            - name: ORCHESTRATOR_API_URL
+              value: ""
+
           resources:
             requests:
               cpu: "250m"

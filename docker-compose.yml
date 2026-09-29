@@ -18,6 +18,9 @@ services:
       REDIS_PORT: "6379"
       CACHE_TTL_SECONDS: "60"
       PEER_CACHE_TTL_SECONDS: "30"
+      OTEL_SERVICE_NAME: hospitaline-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      ORCHESTRATOR_API_URL: ""
     ports:
       - "3000:3000"
     depends_on:
