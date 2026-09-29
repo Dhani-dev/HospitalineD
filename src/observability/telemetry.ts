@@ -1,14 +1,13 @@
-import { propagation } from "@opentelemetry/api";
-import { logs } from "@opentelemetry/api-logs";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
-import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
-import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
+import { propagation } from "@opentelemetry/api";
 import { NodeSDK } from "@opentelemetry/sdk-node";
+import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
+import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
+import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
+import { SimpleLogRecordProcessor } from "@opentelemetry/sdk-logs";
+import { resourceFromAttributes } from "@opentelemetry/resources";
 
 let started = false;
 
@@ -24,36 +23,46 @@ export function startTelemetry(serviceName = "hospitaline-api"): void {
     return;
   }
 
-  propagation.setGlobalPropagator(new W3CTraceContextPropagator());
   started = true;
+  propagation.setGlobalPropagator(new W3CTraceContextPropagator());
 
   const sdk = new NodeSDK({
     resource: resourceFromAttributes({
       "service.name": serviceName,
       "service.namespace": "hospitaline",
-      "cloud.provider": "gcp",
-      "cloud.platform": "gcp_kubernetes_engine",
-      "k8s.namespace.name": process.env.POD_NAMESPACE ?? "hospitaline-prod",
-      "k8s.pod.name": process.env.POD_NAME ?? "local"
+      "cloud.provider": "gcp"
     }),
     traceExporter: new OTLPTraceExporter(),
     metricReader: new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter(),
-      exportIntervalMillis: 15000
+      exporter: new OTLPMetricExporter()
     }),
-    logRecordProcessors: [
-      new BatchLogRecordProcessor({
-        exporter: new OTLPLogExporter()
-      })
-    ],
+    logRecordProcessor: new SimpleLogRecordProcessor({
+      exporter: new OTLPLogExporter()
+    }),
     instrumentations: [
       getNodeAutoInstrumentations({
         "@opentelemetry/instrumentation-fs": { enabled: false },
-        "@opentelemetry/instrumentation-http": { enabled: true }
+        "@opentelemetry/instrumentation-http": {
+          enabled: true,
+          applyCustomAttributesOnSpan: (span, request) => {
+            const route =
+              "url" in request && typeof request.url === "string"
+                ? request.url.split("?")[0]
+                : "path" in request && typeof request.path === "string"
+                  ? request.path
+                  : undefined;
+
+            if (route) {
+              span.setAttribute("http.route", route);
+              span.updateName(`${request.method ?? "HTTP"} ${route}`);
+            }
+          }
+        },
+        "@opentelemetry/instrumentation-undici": { enabled: true }
       })
     ]
   });
 
   sdk.start();
-  logs.getLogger("hospitaline-api-gcp");
+  console.log("OpenTelemetry initialized");
 }
