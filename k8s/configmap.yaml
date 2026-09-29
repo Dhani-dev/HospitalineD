@@ -17,4 +17,6 @@ data:
   ENTRENADOR_LAST_PATH: "/api/v2/entrenador/last"
   ENTRENADOR_LIST_PATH: "/entrenador"
   OTEL_SERVICE_NAME: "hospitaline-api"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp-gateway-prod-us-east-3.grafana.net/otlp"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
   ORCHESTRATOR_API_URL: ""
