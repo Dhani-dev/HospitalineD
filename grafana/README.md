@@ -1,6 +1,3 @@
 # Movido
 
-La observabilidad vive en [`observability/README.md`](../observability/README.md).
-
-1. Connections → **GCP Metrics**
-2. Después OpenTelemetry
+Hospitaline no administra Grafana. El servicio de métricas y cómo el compañero scrape está en [`observability/README.md`](../observability/README.md).

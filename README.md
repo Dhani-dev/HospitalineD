@@ -134,9 +134,9 @@ Las APIs de los compañeros deben consumir `GET /api/v2/hospitals/last` (y opcio
 
 El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` queda vacío a propósito: él llamará a Hospitaline con esos headers; Hospitaline no lo invoca.
 
-## Observabilidad (GCP Metrics, luego OpenTelemetry)
+## Observabilidad (Integrante B, GCP)
 
-Primero conecta **GCP Metrics** en Grafana Cloud (no GCP Logs). Después OpenTelemetry. Guía, dashboards y código: [`observability/README.md`](observability/README.md).
+Daniela no administra Grafana. Expone **`GET /metrics`** (Prometheus) para que el compañero scrape el tablero unificado. Cloud Monitoring / Cloud Logging cubren la nube nativa. Guía: [`observability/README.md`](observability/README.md).
 
 ```text
 OTEL_SERVICE_NAME=hospitaline-api

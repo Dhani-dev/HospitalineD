@@ -1,0 +1,23 @@
+{
+  "displayName": "Hospitaline API 5xx",
+  "documentation": {
+    "content": "Se dispara cuando api/v2 responde 5xx. Provoca un fallo (por ejemplo tumbar Cloud SQL o mandar un payload inválido que llegue a 500) y espera el correo/canal. Integrante B (GCP). Grafana lo conecta el dueño del stack scrapeando GET /metrics.",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "jsonPayload.status_code >= 500",
+      "conditionMatchedLog": {
+        "filter": "resource.type=\"k8s_container\" AND resource.labels.container_name=\"hospitaline-api\" AND jsonPayload.status_code>=500"
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "300s"
+    },
+    "autoClose": "1800s"
+  }
+}

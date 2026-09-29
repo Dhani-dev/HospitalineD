@@ -1,60 +1,68 @@
-# Observabilidad Hospitaline (GCP)
+# Observabilidad Hospitaline — Integrante B (GCP)
 
-Orden de la tarea: **primero métricas de la nube, después OpenTelemetry**.
+Daniela **no es dueña de Grafana**. El compañero del orquestador conecta el tablero SAAS. Hospitaline **expone** métricas, logs con `trace_id` y OTLP para que él scrape/reciba.
 
-En Grafana Cloud, de las dos tarjetas GCP, elige **GCP Metrics** (no GCP Logs). Hospitaline corre en GKE y Cloud SQL; esa integración trae CPU, memoria, disco y SQL al mismo stack del equipo. Los logs de la API ya salen por stdout con `trace_id` (Cloud Logging). OTel se activa en el paso 2.
+La cola y Object Storage **no** son de esta nube. Caché Redis sí.
 
-El orquestador de Pokenetes **no está conectado**. `ORCHESTRATOR_API_URL` queda vacío.
+## Qué entregas al compañero de Grafana
 
-Código (mismo esquema que biblio-express):
+Scrape Prometheus (métricas RED + caché + proceso):
+
+```text
+GET http://<EXTERNAL-IP>/metrics
+```
+
+Ejemplo cuando el LoadBalancer está arriba: `http://34.27.58.84/metrics`.
+
+Headers de correlación en cada llamada:
+
+```text
+x-trace-id
+traceparent
+```
+
+OTLP (opcional): cuando él te pase el endpoint del stack, se pega en el secreto `hospitaline-otel`. Hasta entonces el SDK no arranca y `/metrics` sigue funcionando.
+
+## Métricas que expone `/metrics`
+
+| Métrica | Rubrica |
+|---|---|
+| `hospitaline_http_requests_total{method,route,status}` | tasa de peticiones y errores `/api/v2` |
+| `hospitaline_http_request_duration_seconds` | latencia p50/p95 |
+| `hospitaline_cache_hits_total` / `hospitaline_cache_misses_total` | aciertos y fallos de caché |
+| `hospitaline_process_*` / `hospitaline_nodejs_*` | proceso del Pod (CPU/memoria) |
+
+PromQL de ejemplo para su dashboard:
+
+```text
+sum by (route) (rate(hospitaline_http_requests_total[5m]))
+sum by (route) (rate(hospitaline_http_requests_total{status=~"5.."}[5m]))
+histogram_quantile(0.50, sum by (le, route) (rate(hospitaline_http_request_duration_seconds_bucket[5m])))
+histogram_quantile(0.95, sum by (le, route) (rate(hospitaline_http_request_duration_seconds_bucket[5m])))
+sum(rate(hospitaline_cache_hits_total[5m]))
+sum(rate(hospitaline_cache_misses_total[5m]))
+```
+
+Cola (`mensajes pendientes`): artefacto de otra nube; no se inventa aquí.
+
+## Monitoreo nativo GCP (tu nube)
+
+GKE ya manda CPU/memoria a **Cloud Monitoring**. Los logs JSON de `/api/v2` van a **Cloud Logging** con `trace_id` y `status_code`.
+
+Alerta (aplicar una vez, canal de email en la consola):
+
+```bash
+gcloud monitoring policies create --policy-from-file=observability/gcp-alert-policy.json
+```
+
+En Cloud Monitoring → Alerting → Notification channels crea un email y asócialo a la política. Para la sustentación: provoca un 500 y espera el aviso.
+
+## Código
 
 ```text
 src/observability/
-├── telemetry.ts        # SDK OTLP (trazas, métricas, logs)
-├── trace-context.ts    # x-trace-id + traceparent
-└── request-logger.ts   # log OTel de /api/v2 + RED
+├── metrics.ts          # registro Prometheus (el servicio de métricas)
+├── telemetry.ts        # OTLP cuando el compañero entregue el endpoint
+├── trace-context.ts    # x-trace-id
+└── request-logger.ts   # RED + log /api/v2
 ```
-
-## Paso 1 — GCP Metrics (la tarjeta de la imagen)
-
-1. Grafana Cloud → Connections → **GCP Metrics**.
-2. Crea una cuenta de servicio de solo lectura:
-
-```bash
-PROJECT=project-39d0c894-3885-4211-89d
-
-gcloud iam service-accounts create grafana-gcp-metrics \
-  --project="$PROJECT" \
-  --display-name="Grafana Cloud GCP Metrics"
-
-gcloud projects add-iam-policy-binding "$PROJECT" \
-  --member="serviceAccount:grafana-gcp-metrics@${PROJECT}.iam.gserviceaccount.com" \
-  --role="roles/monitoring.viewer"
-
-gcloud iam service-accounts keys create grafana-gcp-metrics.json \
-  --iam-account="grafana-gcp-metrics@${PROJECT}.iam.gserviceaccount.com"
-```
-
-3. En Grafana pega el JSON de la key (no lo subas a git).
-4. Importa `observability/gcp-metrics-dashboard.json` y elige el datasource **Google Cloud Monitoring**.
-5. Filtra cluster `hospitaline-gke` y namespace `hospitaline-prod`.
-
-Plantilla IAM: `observability/gcp-metrics-sa.yaml.example`.
-
-## Paso 2 — OpenTelemetry (después de las métricas GCP)
-
-Connections → **OpenTelemetry** (no las tarjetas GCP). Copia:
-
-```text
-OTEL_SERVICE_NAME=hospitaline-api
-OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-....grafana.net/otlp
-OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic ...
-```
-
-Mismo stack que Pokenetes y biblio-express. En GKE usa `k8s/secrets/otel-secret.yaml.example`. Hay que reconstruir la imagen: el SDK está en el código.
-
-Importa `observability/otel-dashboard.json` (Prometheus del stack). Trazas: Explore → Tempo → `hospitaline-api` → spans `peer.biblio-express` y `peer.pokenetes`.
-
-## Headers
-
-Cada request acepta, responde y propaga `x-trace-id` y `traceparent`. Así se correlacionan logs de GCP, métricas y trazas de las tres nubes.
