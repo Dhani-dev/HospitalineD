@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { parseTraceparent, resolveTraceId, tracedHeaders } from "../../src/http/trace";
+import { startTelemetry, isTelemetryEnabled } from "../../src/observability/telemetry";
+import {
+  parseTraceparent,
+  resolveTraceId,
+  tracedHeaders
+} from "../../src/observability";
 import {
   getOrchestratorPlaceholder,
   isOrchestratorConfigured
 } from "../../src/integrations/orchestratorPlaceholder";
-import { isTelemetryEnabled, startTelemetry } from "../../src/telemetry";
 
 describe("telemetry", () => {
   it("does not start the SDK when the OTLP endpoint is missing", () => {

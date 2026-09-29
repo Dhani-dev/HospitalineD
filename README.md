@@ -134,9 +134,9 @@ Las APIs de los compañeros deben consumir `GET /api/v2/hospitals/last` (y opcio
 
 El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` queda vacío a propósito: él llamará a Hospitaline con esos headers; Hospitaline no lo invoca.
 
-## Observabilidad (OpenTelemetry → Grafana)
+## Observabilidad (GCP Metrics, luego OpenTelemetry)
 
-Hospitaline exporta trazas y métricas RED al mismo stack Grafana Cloud del equipo. Guía e import del dashboard: [`grafana/README.md`](grafana/README.md).
+Primero conecta **GCP Metrics** en Grafana Cloud (no GCP Logs). Después OpenTelemetry. Guía, dashboards y código: [`observability/README.md`](observability/README.md).
 
 ```text
 OTEL_SERVICE_NAME=hospitaline-api
@@ -587,14 +587,13 @@ La configuración detallada de Render se encuentra en [`RENDER_SETUP.md`](RENDER
 src/
 ├── app.ts
 ├── server.ts
-├── telemetry.ts
+├── observability/
 ├── bootstrap/
 ├── cache/
 ├── config/
 ├── controllers/
 ├── db/
 ├── errors/
-├── http/
 ├── integrations/
 ├── plugins/
 ├── repositories/
@@ -602,6 +601,7 @@ src/
 ├── services/
 └── types/
 
+observability/
 grafana/
 k8s/
 
