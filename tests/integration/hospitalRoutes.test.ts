@@ -188,6 +188,18 @@ describe("Hospital routes", () => {
     expect(typeof body.trace_id).toBe("string");
   });
 
+  it("echoes x-trace-id on v2 last", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v2/hospitals/last",
+      headers: { "x-trace-id": "corr-hospitaline" }
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["x-trace-id"]).toBe("corr-hospitaline");
+    expect(JSON.parse(res.payload).trace_id).toBe("corr-hospitaline");
+  });
+
   it("returns 404 when hospital is missing", async () => {
     const res = await app.inject({
       method: "GET",
