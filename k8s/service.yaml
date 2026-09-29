@@ -3,11 +3,16 @@ kind: Service
 metadata:
   name: hospitaline-api
   namespace: hospitaline-prod
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: hospitaline-api
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 80
       targetPort: 3000
-  type: ClusterIP
+  type: LoadBalancer
