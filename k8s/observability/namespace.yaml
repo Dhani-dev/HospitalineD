@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: observability
+  annotations:
+    iam.gke.io/gcp-service-account: grafana-cloud-monitoring@project-39d0c894-3885-4211-89d.iam.gserviceaccount.com
