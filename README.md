@@ -76,6 +76,10 @@ REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 CACHE_TTL_SECONDS=60
 PEER_CACHE_TTL_SECONDS=30
+ORCHESTRATOR_API_URL=
+OTEL_SERVICE_NAME=hospitaline-api
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_HEADERS=
 ```
 
 `USERS_API_URL` y `ENTRENADOR_API_URL` pueden quedar vacías hasta que existan las URLs de Azure y AWS. Si un peer no está configurado o falla, `local` sigue saliendo y el peer se marca con `live: false`. Nunca se inventan datos.
@@ -124,9 +128,21 @@ curl http://localhost:3000/api/v2/hospitals/UUID
 }
 ```
 
-El cliente intenta primero `.../last` y, si aún no existe, usa el listado y toma el último ítem. El header `x-trace-id` se acepta, se responde y se propaga a las APIs compañeras.
+El cliente intenta primero `.../last` y, si aún no existe, usa el listado y toma el último ítem. El header `x-trace-id` se acepta, se responde y se propaga a las APIs compañeras junto con `traceparent` (W3C).
 
 Las APIs de los compañeros deben consumir `GET /api/v2/hospitals/last` (y opcionalmente `/api/v1/hospitals` como fallback).
+
+El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` queda vacío a propósito: él llamará a Hospitaline con esos headers; Hospitaline no lo invoca.
+
+## Observabilidad (OpenTelemetry → Grafana)
+
+Hospitaline exporta trazas y métricas RED al mismo stack Grafana Cloud del equipo. Guía e import del dashboard: [`grafana/README.md`](grafana/README.md).
+
+```text
+OTEL_SERVICE_NAME=hospitaline-api
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_HEADERS=
+```
 
 ## Caché distribuida
 
@@ -571,18 +587,23 @@ La configuración detallada de Render se encuentra en [`RENDER_SETUP.md`](RENDER
 src/
 ├── app.ts
 ├── server.ts
+├── telemetry.ts
 ├── bootstrap/
 ├── cache/
 ├── config/
 ├── controllers/
 ├── db/
 ├── errors/
+├── http/
 ├── integrations/
 ├── plugins/
 ├── repositories/
 ├── routes/
 ├── services/
 └── types/
+
+grafana/
+k8s/
 
 tests/
 ├── integration/
