@@ -1,10 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { startTelemetry, isTelemetryEnabled } from "../../src/observability/telemetry";
-import {
-  parseTraceparent,
-  resolveTraceId,
-  tracedHeaders
-} from "../../src/observability";
+import { resolveTraceId, tracedHeaders } from "../../src/observability/trace-context";
+import { requestLogger, httpLogger } from "../../src/observability/request-logger";
 import {
   getOrchestratorPlaceholder,
   isOrchestratorConfigured
@@ -16,6 +13,13 @@ describe("telemetry", () => {
     expect(isTelemetryEnabled()).toBe(false);
     expect(() => startTelemetry("hospitaline-api")).not.toThrow();
   });
+});
+
+describe("trace-context", () => {
+  it("reuses x-trace-id and generates one when it is missing", () => {
+    expect(resolveTraceId("corr-123")).toBe("corr-123");
+    expect(resolveTraceId(undefined)).toEqual(expect.any(String));
+  });
 
   it("sends the trace id header used by the three clouds", () => {
     expect(tracedHeaders("demo-trace")).toMatchObject({
@@ -23,21 +27,39 @@ describe("telemetry", () => {
       Accept: "application/json"
     });
   });
+});
 
-  it("reads the W3C trace id from traceparent", () => {
-    expect(
-      parseTraceparent("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
-    ).toBe("4bf92f3577b34da6a3ce929d0e0e4736");
-  });
+describe("request-logger", () => {
+  it("emits an OTel log only for /api/v2", () => {
+    const emit = vi.spyOn(httpLogger, "emit");
 
-  it("prefers x-trace-id and falls back to the otel trace id", () => {
-    expect(resolveTraceId("corr-123", "4bf92f3577b34da6a3ce929d0e0e4736")).toBe("corr-123");
-    expect(resolveTraceId(undefined, "4bf92f3577b34da6a3ce929d0e0e4736")).toBe(
-      "4bf92f3577b34da6a3ce929d0e0e4736"
+    requestLogger(
+      { url: "/health", method: "GET", otelStartNs: process.hrtime.bigint() } as any,
+      { statusCode: 200 } as any
     );
-  });
+    expect(emit).not.toHaveBeenCalled();
 
-  it("leaves the orchestrator unconfigured until its URL is filled in", () => {
+    requestLogger(
+      { url: "/api/v2/hospitals/last", method: "GET", otelStartNs: process.hrtime.bigint() } as any,
+      { statusCode: 200 } as any
+    );
+
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "HTTP request completed",
+        attributes: expect.objectContaining({
+          method: "GET",
+          path: "/api/v2/hospitals/last",
+          status_code: 200
+        })
+      })
+    );
+    emit.mockRestore();
+  });
+});
+
+describe("orchestrator placeholder", () => {
+  it("stays empty until the URL is filled in", () => {
     delete process.env.ORCHESTRATOR_API_URL;
     expect(isOrchestratorConfigured()).toBe(false);
     expect(getOrchestratorPlaceholder().expectedSpanName).toBe("flujo.hospitaline");
