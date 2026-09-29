@@ -1,6 +1,19 @@
 # Grafana k8s-monitoring on GKE Autopilot.
-# The Cloud wizard still emits daemonset/host-network/root even if you pick Autopilot.
-# Password is NOT stored here — pass it with --set-string when you install.
+# Password is NOT stored here. Pass it with:
+#   --set-string destinations.grafana-cloud-metrics.auth.password="$GRAFANA_CLOUD_TOKEN"
+
+destinations:
+  grafana-cloud-metrics:
+    type: prometheus
+    url: https://prometheus-prod-66-prod-us-east-3.grafana.net/api/prom/push
+    disabled: false
+    auth:
+      type: basic
+      username: "3605358"
+
+clusterMetrics:
+  enabled: true
+  collector: alloy
 
 collectorCommon:
   alloy:
@@ -13,6 +26,7 @@ collectorCommon:
 collectors:
   alloy:
     presets: [clustered, statefulset]
+    extraConfig: ""
 
 telemetryServices:
   node-exporter:
