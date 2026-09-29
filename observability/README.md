@@ -59,15 +59,20 @@ Identidad lista (sin clave JSON):
 - KSA `alloy` → GSA `grafana-cloud-monitoring@project-39d0c894-3885-4211-89d.iam.gserviceaccount.com`
 - Workload Identity vinculado
 
-Alloy **aún no está instalado**. El dueño de Grafana debe enviar el config del asistente GCP Metrics (Kubernetes, no Debian). Entonces:
+El asistente de Grafana Cloud (GKE Autopilot) sigue generando presets `daemonset` / `host-network` / `root`. **No uses ese comando.** Instala con los values de Autopilot; el token solo en la terminal:
 
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
-helm upgrade --install alloy grafana/alloy -n observability -f k8s/observability/alloy-values.yaml
+helm upgrade --install grafana-cloud grafana/k8s-monitoring \
+  --namespace observability --create-namespace \
+  --set cluster.name=hospitaline-gke \
+  --set collectorCommon.alloy.remoteConfig.enabled=true \
+  --set-string collectorCommon.alloy.remoteConfig.url=https://fleet-management-prod-028.grafana.net \
+  --set-string collectorCommon.alloy.remoteConfig.auth.username=1840567 \
+  --set-string collectorCommon.alloy.remoteConfig.auth.password="$GRAFANA_CLOUD_TOKEN" \
+  -f k8s/observability/k8s-monitoring-values.yaml
 ```
-
-Pega su config en `alloy.configMap.content` de ese values (deja `serviceAccount.name: alloy`). El clúster es Autopilot: no uses DaemonSet.
 
 ## Código
 
