@@ -3,9 +3,9 @@ import { startTelemetry } from "./observability/telemetry";
 startTelemetry(process.env.OTEL_SERVICE_NAME ?? "hospitaline-api");
 
 async function main(): Promise<void> {
-  const { getEnvConfig } = await import("./config/env");
-  const { createDefaultServices } = await import("./bootstrap/createServices");
-  const { buildApp } = await import("./app");
+  const { getEnvConfig } = await import("./config/env.js");
+  const { createDefaultServices } = await import("./bootstrap/createServices.js");
+  const { buildApp } = await import("./app.js");
 
   const { port } = getEnvConfig();
   const app = buildApp(createDefaultServices());
