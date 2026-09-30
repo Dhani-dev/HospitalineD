@@ -37,6 +37,22 @@ const cacheMissesTotal = new client.Counter({
   registers: [registry]
 });
 
+const dashboardCacheHits = new client.Counter({
+  name: "cache_hits_total",
+  help: "Cache hits labeled for the unified Grafana dashboard",
+  labelNames: ["service_name"] as const,
+  registers: [registry]
+});
+
+const dashboardCacheMisses = new client.Counter({
+  name: "cache_misses_total",
+  help: "Cache misses labeled for the unified Grafana dashboard",
+  labelNames: ["service_name"] as const,
+  registers: [registry]
+});
+
+const SERVICE_NAME = "hospitaline-api";
+
 export function recordHttpRequest(
   method: string,
   route: string,
@@ -49,7 +65,7 @@ export function recordHttpRequest(
 }
 
 function otelCacheCounter(name: "hits" | "misses") {
-  return metrics.getMeter("hospitaline").createCounter(`hospitaline.cache.${name}`, {
+  return metrics.getMeter("hospitaline").createCounter(`cache.${name}`, {
     description: name === "hits" ? "Cache hits" : "Cache misses"
   });
 }
@@ -59,12 +75,14 @@ let otelMisses: ReturnType<typeof otelCacheCounter> | undefined;
 
 export function recordCacheHit(backend: string): void {
   cacheHitsTotal.inc({ backend });
-  (otelHits ??= otelCacheCounter("hits")).add(1, { backend });
+  dashboardCacheHits.inc({ service_name: SERVICE_NAME });
+  (otelHits ??= otelCacheCounter("hits")).add(1, { service_name: SERVICE_NAME, backend });
 }
 
 export function recordCacheMiss(backend: string): void {
   cacheMissesTotal.inc({ backend });
-  (otelMisses ??= otelCacheCounter("misses")).add(1, { backend });
+  dashboardCacheMisses.inc({ service_name: SERVICE_NAME });
+  (otelMisses ??= otelCacheCounter("misses")).add(1, { service_name: SERVICE_NAME, backend });
 }
 
 export function renderMetrics(): Promise<string> {
