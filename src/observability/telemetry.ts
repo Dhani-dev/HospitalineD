@@ -7,7 +7,6 @@ import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { SimpleLogRecordProcessor } from "@opentelemetry/sdk-logs";
-import { resourceFromAttributes } from "@opentelemetry/resources";
 
 let started = false;
 
@@ -25,13 +24,11 @@ export function startTelemetry(serviceName = "hospitaline-api"): void {
 
   started = true;
   propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+  if (!process.env.OTEL_SERVICE_NAME?.trim()) {
+    process.env.OTEL_SERVICE_NAME = serviceName;
+  }
 
   const sdk = new NodeSDK({
-    resource: resourceFromAttributes({
-      "service.name": serviceName,
-      "service.namespace": "hospitaline",
-      "cloud.provider": "gcp"
-    }),
     traceExporter: new OTLPTraceExporter(),
     metricReader: new PeriodicExportingMetricReader({
       exporter: new OTLPMetricExporter()
@@ -44,6 +41,8 @@ export function startTelemetry(serviceName = "hospitaline-api"): void {
         "@opentelemetry/instrumentation-fs": { enabled: false },
         "@opentelemetry/instrumentation-http": {
           enabled: true,
+          ignoreIncomingRequestHook: (request) =>
+            request.url?.split("?")[0] === "/health",
           applyCustomAttributesOnSpan: (span, request) => {
             const route =
               "url" in request && typeof request.url === "string"
