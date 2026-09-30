@@ -1,0 +1,59 @@
+name: Deploy API to GKE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - Dockerfile
+      - package.json
+      - package-lock.json
+      - k8s/deployment.yaml
+      - k8s/configmap.yaml
+      - k8s/service.yaml
+      - k8s/hpa.yaml
+      - .github/workflows/api-gke.yml
+
+env:
+  IMAGE: us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-repo/hospitaline-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build and push the API image
+        run: |
+          TAG="${IMAGE}:${GITHUB_SHA::7}"
+          docker build --platform linux/amd64 -t "$TAG" .
+          docker push "$TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: hospitaline-gke
+          location: us-central1
+
+      - name: Roll out the API image
+        run: |
+          kubectl apply -f k8s/configmap.yaml
+          kubectl set image deployment/hospitaline-api hospitaline-api="$TAG" -n hospitaline-prod
+          kubectl rollout status deployment/hospitaline-api -n hospitaline-prod --timeout=300s
