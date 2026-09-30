@@ -70,7 +70,6 @@ describe("HospitalService", () => {
     expect(result).toEqual({
       api: "hospitaline",
       version: "2.0.0",
-      trace_id: "trace-1",
       "x-trace_id": "trace-1",
       "trace-id": null,
       "span-id": null,

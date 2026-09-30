@@ -18,7 +18,6 @@ export function resolveTraceId(headerValue: string | string[] | undefined): stri
 }
 
 export function traceIdentifiers(xTraceId: string): {
-  trace_id: string;
   "x-trace_id": string;
   "trace-id": string | null;
   "span-id": string | null;
@@ -29,7 +28,6 @@ export function traceIdentifiers(xTraceId: string): {
     Boolean(grafanaTraceId) && !/^0+$/.test(grafanaTraceId ?? "");
 
   return {
-    trace_id: xTraceId,
     "x-trace_id": xTraceId,
     "trace-id": recorded ? grafanaTraceId! : null,
     "span-id": recorded ? (spanContext?.spanId ?? null) : null

@@ -34,7 +34,9 @@ describe("Doctor routes", () => {
           return {
             api: "hospitaline",
             version: "2.0.0",
-            trace_id: traceId,
+            "x-trace_id": traceId,
+            "trace-id": null,
+            "span-id": null,
             entity: "doctor",
             local,
             peers: {

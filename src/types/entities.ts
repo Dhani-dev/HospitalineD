@@ -17,7 +17,6 @@ export type PeerResponse = {
 };
 
 export type TraceIdentifiers = {
-  trace_id: string;
   "x-trace_id": string;
   "trace-id": string | null;
   "span-id": string | null;

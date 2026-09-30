@@ -32,7 +32,9 @@ describe("Hospital routes", () => {
           return {
             api: "hospitaline",
             version: "2.0.0",
-            trace_id: traceId,
+            "x-trace_id": traceId,
+            "trace-id": null,
+            "span-id": null,
             entity: "hospital",
             local,
             peers: {
@@ -185,7 +187,8 @@ describe("Hospital routes", () => {
       })
     );
     expect(body.peers).toBeUndefined();
-    expect(typeof body.trace_id).toBe("string");
+    expect(typeof body["x-trace_id"]).toBe("string");
+    expect(body.trace_id).toBeUndefined();
   });
 
   it("echoes x-trace-id on v2 last", async () => {
@@ -199,7 +202,7 @@ describe("Hospital routes", () => {
     expect(res.headers["x-trace-id"]).toBe("corr-hospitaline");
     const body = JSON.parse(res.payload);
     expect(body["x-trace_id"]).toBe("corr-hospitaline");
-    expect(body.trace_id).toBe("corr-hospitaline");
+    expect(body.trace_id).toBeUndefined();
     expect(body["trace-id"]).toBeNull();
   });
 
