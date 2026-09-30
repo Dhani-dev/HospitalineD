@@ -1,3 +1,4 @@
+import { metrics } from "@opentelemetry/api";
 import client from "prom-client";
 
 export const registry = new client.Registry();
@@ -47,12 +48,23 @@ export function recordHttpRequest(
   httpRequestDurationSeconds.observe({ method, route }, durationSeconds);
 }
 
+function otelCacheCounter(name: "hits" | "misses") {
+  return metrics.getMeter("hospitaline").createCounter(`hospitaline.cache.${name}`, {
+    description: name === "hits" ? "Cache hits" : "Cache misses"
+  });
+}
+
+let otelHits: ReturnType<typeof otelCacheCounter> | undefined;
+let otelMisses: ReturnType<typeof otelCacheCounter> | undefined;
+
 export function recordCacheHit(backend: string): void {
   cacheHitsTotal.inc({ backend });
+  (otelHits ??= otelCacheCounter("hits")).add(1, { backend });
 }
 
 export function recordCacheMiss(backend: string): void {
   cacheMissesTotal.inc({ backend });
+  (otelMisses ??= otelCacheCounter("misses")).add(1, { backend });
 }
 
 export function renderMetrics(): Promise<string> {
