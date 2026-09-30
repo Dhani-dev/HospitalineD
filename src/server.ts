@@ -1,20 +1,22 @@
-import { buildApp } from "./app";
-import { createDefaultServices } from "./bootstrap/createServices";
-import { getEnvConfig } from "./config/env";
 import { startTelemetry } from "./observability/telemetry";
-
-const { port } = getEnvConfig();
 
 startTelemetry(process.env.OTEL_SERVICE_NAME ?? "hospitaline-api");
 
-const app = buildApp(createDefaultServices());
+async function main(): Promise<void> {
+  const { getEnvConfig } = await import("./config/env");
+  const { createDefaultServices } = await import("./bootstrap/createServices");
+  const { buildApp } = await import("./app");
 
-app
-  .listen({ port, host: "0.0.0.0" })
-  .then(() => {
+  const { port } = getEnvConfig();
+  const app = buildApp(createDefaultServices());
+
+  try {
+    await app.listen({ port, host: "0.0.0.0" });
     app.log.info(`Server listening on port ${port}`);
-  })
-  .catch((error) => {
+  } catch (error) {
     app.log.error(error);
     process.exit(1);
-  });
+  }
+}
+
+void main();

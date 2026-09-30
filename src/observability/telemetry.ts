@@ -33,12 +33,17 @@ export function startTelemetry(serviceName = "hospitaline-api"): void {
     resource: defaultResource().merge(
       resourceFromAttributes({
         "service.name": process.env.OTEL_SERVICE_NAME,
-        "service.namespace": "hospitaline"
+        "service.namespace": "hospitaline",
+        "deployment.environment.name": process.env.NODE_ENV ?? "production",
+        "cloud.provider": "gcp",
+        "k8s.namespace.name": process.env.POD_NAMESPACE ?? "hospitaline-prod",
+        "k8s.pod.name": process.env.POD_NAME ?? "local"
       })
     ),
     traceExporter: new OTLPTraceExporter(),
     metricReader: new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter()
+      exporter: new OTLPMetricExporter(),
+      exportIntervalMillis: 15000
     }),
     logRecordProcessor: new SimpleLogRecordProcessor({
       exporter: new OTLPLogExporter()
@@ -70,5 +75,11 @@ export function startTelemetry(serviceName = "hospitaline-api"): void {
   });
 
   sdk.start();
-  console.log("OpenTelemetry initialized");
+  console.log(
+    JSON.stringify({
+      msg: "telemetry started",
+      service: process.env.OTEL_SERVICE_NAME,
+      hasAuthHeader: Boolean(process.env.OTEL_EXPORTER_OTLP_HEADERS?.includes("Authorization"))
+    })
+  );
 }
