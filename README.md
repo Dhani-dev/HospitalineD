@@ -101,7 +101,9 @@ curl http://localhost:3000/api/v2/hospitals/last
 {
   "api": "hospitaline",
   "version": "2.0.0",
-  "trace_id": "...",
+  "x-trace_id": "uuid-de-la-peticion",
+  "trace-id": "id-de-grafana-sin-guiones",
+  "span-id": "span-de-grafana",
   "entity": "hospital",
   "local": { "id": "...", "name": "Central" }
 }
@@ -119,7 +121,9 @@ curl http://localhost:3000/api/v2/hospitals/UUID
 {
   "api": "hospitaline",
   "version": "2.0.0",
-  "trace_id": "...",
+  "x-trace_id": "uuid-de-la-peticion",
+  "trace-id": "id-de-grafana-sin-guiones",
+  "span-id": "span-de-grafana",
   "entity": "hospital",
   "local": { "id": "...", "name": "Central" },
   "peers": {

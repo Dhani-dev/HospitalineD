@@ -71,6 +71,9 @@ describe("HospitalService", () => {
       api: "hospitaline",
       version: "2.0.0",
       trace_id: "trace-1",
+      "x-trace_id": "trace-1",
+      "trace-id": null,
+      "span-id": null,
       entity: "hospital",
       local: hospital,
       peers: {

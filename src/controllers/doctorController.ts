@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { traceIdentifiers } from "../observability/trace-context";
 import { IDoctorService } from "../services/contracts";
 import { handleControllerError } from "./baseController";
 
@@ -54,7 +55,7 @@ export class DoctorController {
       return reply.status(200).send({
         api: "hospitaline",
         version: "2.0.0",
-        trace_id: request.traceId,
+        ...traceIdentifiers(request.traceId),
         entity: "doctor",
         local
       });

@@ -1,3 +1,4 @@
+import { traceIdentifiers } from "../observability/trace-context";
 import { EntityV2Response, LocalEntityName, PeerResponse } from "../types/entities";
 import { ExternalEntitiesClient } from "./externalEntitiesClient";
 
@@ -17,7 +18,7 @@ export async function buildEntityV2Response<T>(
   return {
     api: "hospitaline",
     version: "2.0.0",
-    trace_id: traceId,
+    ...traceIdentifiers(traceId),
     entity,
     local,
     peers

@@ -197,7 +197,10 @@ describe("Hospital routes", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.headers["x-trace-id"]).toBe("corr-hospitaline");
-    expect(JSON.parse(res.payload).trace_id).toBe("corr-hospitaline");
+    const body = JSON.parse(res.payload);
+    expect(body["x-trace_id"]).toBe("corr-hospitaline");
+    expect(body.trace_id).toBe("corr-hospitaline");
+    expect(body["trace-id"]).toBeNull();
   });
 
   it("returns 404 when hospital is missing", async () => {

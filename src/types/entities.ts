@@ -16,18 +16,23 @@ export type PeerResponse = {
   data: Record<string, unknown> | null;
 };
 
-export type LastLocalResponse<T> = {
+export type TraceIdentifiers = {
+  trace_id: string;
+  "x-trace_id": string;
+  "trace-id": string | null;
+  "span-id": string | null;
+};
+
+export type LastLocalResponse<T> = TraceIdentifiers & {
   api: "hospitaline";
   version: "2.0.0";
-  trace_id: string;
   entity: LocalEntityName;
   local: T | null;
 };
 
-export type EntityV2Response<T> = {
+export type EntityV2Response<T> = TraceIdentifiers & {
   api: "hospitaline";
   version: "2.0.0";
-  trace_id: string;
   entity: LocalEntityName;
   local: T;
   peers: {
