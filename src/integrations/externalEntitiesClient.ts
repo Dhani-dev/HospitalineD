@@ -54,7 +54,7 @@ export function pickLastRecord(payload: unknown): ExternalEntity | null {
   }
 
   if (isObject(payload.local)) {
-    return payload.local;
+    return withPeerTrace(payload.local, payload);
   }
 
   const nestedKeys = [
@@ -81,6 +81,16 @@ export function pickLastRecord(payload: unknown): ExternalEntity | null {
   }
 
   return payload;
+}
+
+function withPeerTrace(record: ExternalEntity, envelope: ExternalEntity): ExternalEntity {
+  const traced: ExternalEntity = { ...record };
+  for (const key of ["x-trace_id", "trace-id", "span-id"] as const) {
+    if (envelope[key] != null && traced[key] == null) {
+      traced[key] = envelope[key];
+    }
+  }
+  return traced;
 }
 
 function isObject(value: unknown): value is ExternalEntity {

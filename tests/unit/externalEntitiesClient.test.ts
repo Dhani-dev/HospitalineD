@@ -5,13 +5,22 @@ import {
 } from "../../src/integrations/externalEntitiesClient";
 
 describe("pickLastRecord", () => {
-  it("unwraps pokenetes last envelopes", () => {
+  it("keeps the peer trace ids when unwrapping a last envelope", () => {
     expect(
       pickLastRecord({
         api: "pokenetes",
+        "x-trace_id": "0104c82f-e32f-4023-aa54-39a510a42579",
+        "trace-id": "43f9e3dc25f1ebd17a890839d5ea9115",
+        "span-id": "232e95fd8eeaf375",
         local: { id: "1", nombre: "Ash" }
       })
-    ).toEqual({ id: "1", nombre: "Ash" });
+    ).toEqual({
+      id: "1",
+      nombre: "Ash",
+      "x-trace_id": "0104c82f-e32f-4023-aa54-39a510a42579",
+      "trace-id": "43f9e3dc25f1ebd17a890839d5ea9115",
+      "span-id": "232e95fd8eeaf375"
+    });
   });
 
   it("takes the last item from a list", () => {
@@ -23,7 +32,12 @@ describe("HttpExternalEntitiesClient", () => {
   it("propagates x-trace-id and uses last before the list fallback", async () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ local: { id: "e1", nombre: "Ash" } })
+      json: async () => ({
+        local: { id: "e1", nombre: "Ash" },
+        "x-trace_id": "trace-abc",
+        "trace-id": "43f9e3dc25f1ebd17a890839d5ea9115",
+        "span-id": "232e95fd8eeaf375"
+      })
     });
     const client = new HttpExternalEntitiesClient(
       { baseUrl: "", lastPath: "/api/v2/users/last", listPath: "/api/users" },
@@ -45,7 +59,13 @@ describe("HttpExternalEntitiesClient", () => {
     expect(peers.pokenetes).toEqual({
       live: true,
       entity: "entrenador",
-      data: { id: "e1", nombre: "Ash" }
+      data: {
+        id: "e1",
+        nombre: "Ash",
+        "x-trace_id": "trace-abc",
+        "trace-id": "43f9e3dc25f1ebd17a890839d5ea9115",
+        "span-id": "232e95fd8eeaf375"
+      }
     });
     expect(fetcher).toHaveBeenCalledWith(
       "https://pokenetes.example.com/api/v2/entrenador/last",
