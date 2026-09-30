@@ -7,6 +7,7 @@ import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { SimpleLogRecordProcessor } from "@opentelemetry/sdk-logs";
+import { defaultResource, resourceFromAttributes } from "@opentelemetry/resources";
 
 let started = false;
 
@@ -29,6 +30,12 @@ export function startTelemetry(serviceName = "hospitaline-api"): void {
   }
 
   const sdk = new NodeSDK({
+    resource: defaultResource().merge(
+      resourceFromAttributes({
+        "service.name": process.env.OTEL_SERVICE_NAME,
+        "service.namespace": "hospitaline"
+      })
+    ),
     traceExporter: new OTLPTraceExporter(),
     metricReader: new PeriodicExportingMetricReader({
       exporter: new OTLPMetricExporter()
