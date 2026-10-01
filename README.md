@@ -7,7 +7,7 @@ API REST para la gestión de **hospitales, doctores y pacientes**, construida co
 
 ## Arquitectura multicloud
 
-Hospitaline es la nube GCP. Consume por HTTP el último `users` de Biblio (Azure) y el último `entrenador` de Pokenetes (AWS). La caché Redis es de esta nube. La cola y Object Storage no.
+Hospitaline es la nube GCP. Consume por HTTP el último `users` de Biblio (Azure) y el último `entrenador` de Pokenetes (AWS). La caché Redis es de esta nube. La cola y Object Storage no. Neithan opera AWS, Daniela opera GCP y Phol opera Azure.
 
 ![Arquitectura multicloud AWS, GCP y Azure](docs/arquitectura-multicloud.jpg)
 
