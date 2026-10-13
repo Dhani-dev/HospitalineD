@@ -1,0 +1,97 @@
+name: Terraform GCP (infra + API)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "apply despliega todo; destroy elimina la infraestructura"
+        type: choice
+        options: [apply, destroy]
+        default: apply
+  push:
+    branches: [main]
+    paths:
+      - terraform/**
+      - src/**
+      - migrations/**
+      - Dockerfile
+      - package.json
+      - package-lock.json
+      - .github/workflows/terraform-gcp.yml
+
+concurrency:
+  group: terraform-gcp
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: project-39d0c894-3885-4211-89d
+  REGION: us-central1
+  TF_VAR_project_id: project-39d0c894-3885-4211-89d
+  TF_STATE_BUCKET: project-39d0c894-3885-4211-89d-hospitaline-tfstate
+  ACTION: ${{ github.event.inputs.action || 'apply' }}
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Create the Terraform state bucket if missing
+        run: |
+          gcloud services enable cloudresourcemanager.googleapis.com serviceusage.googleapis.com --project "$PROJECT_ID"
+          gcloud storage buckets describe "gs://$TF_STATE_BUCKET" >/dev/null 2>&1 || \
+            gcloud storage buckets create "gs://$TF_STATE_BUCKET" --project "$PROJECT_ID" \
+              --location "$REGION" --uniform-bucket-level-access
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="bucket=$TF_STATE_BUCKET"
+
+      - name: Create the registry and the database first
+        if: env.ACTION == 'apply'
+        run: |
+          terraform apply -input=false -auto-approve \
+            -target=google_artifact_registry_repository.api \
+            -target=google_sql_database.app \
+            -target=google_sql_user.app
+
+      - name: Build and push the API image
+        if: env.ACTION == 'apply'
+        run: |
+          REPO="$(terraform output -raw image_repository)"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build --platform linux/amd64 -t "$REPO:${GITHUB_SHA::7}" ..
+          docker push "$REPO:${GITHUB_SHA::7}"
+          echo "TF_VAR_api_image=$REPO:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Run database migrations
+        if: env.ACTION == 'apply'
+        run: ./scripts/migrate.sh
+
+      - name: Deploy Memorystore, Cloud Run and the rest
+        if: env.ACTION == 'apply'
+        run: terraform apply -input=false -auto-approve
+
+      - name: Smoke test the public URL
+        if: env.ACTION == 'apply'
+        run: |
+          URL="$(terraform output -raw api_url)"
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$URL/health"
+          echo "### API desplegada: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform destroy
+        if: env.ACTION == 'destroy'
+        run: terraform destroy -input=false -auto-approve
