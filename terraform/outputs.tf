@@ -1,0 +1,32 @@
+output "api_url" {
+  description = "URL pública de la API para Postman."
+  value       = google_cloud_run_v2_service.api.uri
+}
+
+output "image_repository" {
+  description = "Repositorio de Artifact Registry donde el pipeline publica la imagen."
+  value       = local.image_repository
+}
+
+output "db_connection_name" {
+  description = "Conexión de Cloud SQL (proyecto:región:instancia)."
+  value       = google_sql_database_instance.postgres.connection_name
+}
+
+output "db_name" {
+  value = google_sql_database.app.name
+}
+
+output "db_user" {
+  value = google_sql_user.app.name
+}
+
+output "db_password" {
+  value     = random_password.db.result
+  sensitive = true
+}
+
+output "redis_host" {
+  description = "IP privada de Memorystore."
+  value       = google_redis_instance.cache.host
+}
