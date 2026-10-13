@@ -9,3 +9,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 dist/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
