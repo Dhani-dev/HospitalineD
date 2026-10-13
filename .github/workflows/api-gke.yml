@@ -1,19 +1,8 @@
 name: Deploy API to GKE
 
+# Solo manual: el despliegue automático ahora es terraform-gcp.yml (Cloud Run).
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - src/**
-      - Dockerfile
-      - package.json
-      - package-lock.json
-      - k8s/deployment.yaml
-      - k8s/configmap.yaml
-      - k8s/service.yaml
-      - k8s/hpa.yaml
-      - .github/workflows/api-gke.yml
 
 env:
   IMAGE: us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-repo/hospitaline-api

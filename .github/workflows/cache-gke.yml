@@ -1,12 +1,8 @@
 name: Deploy cache to GKE
 
+# Solo manual: la caché ahora es Memorystore, creada por Terraform.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - k8s/redis.yaml
-      - .github/workflows/cache-gke.yml
 
 jobs:
   deploy:
