@@ -103,13 +103,37 @@ En la consola: **Cloud Run → hospitaline-tf-api** (URL, revisiones, pestaña
 Logs), **SQL → hospitaline-tf-db → Cloud SQL Studio** (tablas),
 **Memorystore → Redis**, **Artifact Registry** y **Secret Manager**.
 
-## Probar con Postman
+## Obtener la URL de la API y probarla en Postman
 
-Importa `postman/hospitaline-gcp.postman_collection.json` y cambia la variable
-`baseUrl` por la URL de Cloud Run. Ejecuta en orden: health, crear hospital,
-crear doctor y crear paciente; los ids quedan guardados para las demás
-peticiones. `/health` muestra `"backend": "redis"` y `"connected": true` cuando
-Memorystore responde.
+Cloud Run asigna una URL pública del tipo
+`https://hospitaline-tf-api-XXXXXXXXXX.us-central1.run.app`. Se obtiene de
+cualquiera de estas formas:
+
+- **GitHub Actions:** al terminar el job, el resumen muestra
+  `API desplegada: https://...run.app`.
+- **Consola de GCP:** Cloud Run → `hospitaline-tf-api`; la URL aparece arriba,
+  junto al nombre del servicio.
+- **gcloud:**
+
+  ```bash
+  gcloud run services describe hospitaline-tf-api --region us-central1 \
+    --format='value(status.url)'
+  ```
+
+- **Terraform** (desde `terraform/`): `terraform output -raw api_url`.
+
+En Postman, usa esa URL como base y agrega la ruta del endpoint
+(ver la tabla de endpoints del README principal), por ejemplo:
+
+| Método | URL | Body (raw JSON) |
+|---|---|---|
+| `GET` | `{URL}/health` | — |
+| `POST` | `{URL}/api/v1/hospitals` | `{"name":"Hospital Central","address":"Calle 10","city":"Medellín","phone":"6041234567"}` |
+| `GET` | `{URL}/api/v1/hospitals` | — |
+| `GET` | `{URL}/api/v2/hospitals/last` | — |
+
+`/health` devuelve `"backend": "redis"` y `"connected": true` cuando la API
+está usando Memorystore.
 
 ## Eliminar la infraestructura
 
