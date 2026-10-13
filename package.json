@@ -1,6 +1,6 @@
 {
   "name": "hospitaline",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "Hospital management RESTful API with Fastify and PostgreSQL",
   "main": "dist/server.js",
   "scripts": {
