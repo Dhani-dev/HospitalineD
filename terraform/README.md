@@ -69,3 +69,58 @@ terraform output api_url
 
 El bucket del estado es compartido con el pipeline, así que local y GitHub
 Actions ven la misma infraestructura.
+
+## Pipeline (`.github/workflows/terraform-gcp.yml`)
+
+Usa el secreto de GitHub `GCP_SA_KEY` (JSON de la cuenta de despliegue).
+
+Se ejecuta solo con cada push a `main` que toque `terraform/`, `src/`,
+`migrations/`, `Dockerfile` o `package*.json`, o a mano en **Actions →
+Terraform GCP → Run workflow → apply**. Hace:
+
+1. Crea el bucket del estado si no existe y corre `terraform init`.
+2. Crea Artifact Registry y Cloud SQL.
+3. Construye y publica la imagen con el SHA del commit.
+4. Corre `migrations/*.sql` (solo si las tablas no existen).
+5. Crea Memorystore, el conector VPC, los secretos y Cloud Run.
+6. Llama a `/health` y deja la URL en el resumen del job.
+
+La primera ejecución tarda unos 15–20 min (Cloud SQL y Memorystore son lentos).
+
+## Verificar en GCP
+
+```bash
+terraform output api_url
+gcloud run services describe hospitaline-tf-api --region us-central1
+gcloud sql instances list
+gcloud redis instances list --region us-central1
+gcloud artifacts docker images list \
+  us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-tf-repo
+gcloud secrets list --filter="name~hospitaline-tf"
+```
+
+En la consola: **Cloud Run → hospitaline-tf-api** (URL, revisiones, pestaña
+Logs), **SQL → hospitaline-tf-db → Cloud SQL Studio** (tablas),
+**Memorystore → Redis**, **Artifact Registry** y **Secret Manager**.
+
+## Probar con Postman
+
+Importa `postman/hospitaline-gcp.postman_collection.json` y cambia la variable
+`baseUrl` por la URL de Cloud Run. Ejecuta en orden: health, crear hospital,
+crear doctor y crear paciente; los ids quedan guardados para las demás
+peticiones. `/health` muestra `"backend": "redis"` y `"connected": true` cuando
+Memorystore responde.
+
+## Eliminar la infraestructura
+
+Al terminar la sustentación, en GitHub: **Actions → Terraform GCP → Run
+workflow → destroy**. O en local:
+
+```bash
+cd terraform
+terraform destroy
+```
+
+Se borra todo lo de este directorio, incluidos los datos. El bucket del estado
+se conserva; para borrarlo también:
+`gcloud storage rm -r gs://project-39d0c894-3885-4211-89d-hospitaline-tfstate`.
