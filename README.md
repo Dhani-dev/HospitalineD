@@ -4,6 +4,7 @@ API REST para la gestión de **hospitales, doctores y pacientes**, construida co
 
 - Test / staging: https://hospitaline-dev.onrender.com
 - Producción: https://hospitaline.onrender.com
+- GCP con Terraform (Cloud Run, Cloud SQL, Memorystore, Artifact Registry, Secret Manager): [`terraform/README.md`](terraform/README.md)
 
 ## Arquitectura multicloud
 
