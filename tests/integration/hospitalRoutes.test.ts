@@ -206,6 +206,28 @@ describe("Hospital routes", () => {
     expect(body["trace-id"]).toBeNull();
   });
 
+  it("GET /api/v3/hospitals/last reports version 3.0.0", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/v3/hospitals/last" });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe("3.0.0");
+    expect(body.peers).toBeUndefined();
+    expect(body.local.id).toEqual(expect.any(String));
+  });
+
+  it("GET /api/v3/hospitals/:id reports version 3.0.0 and keeps peers", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v3/hospitals/11111111-1111-1111-1111-111111111111"
+    });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe("3.0.0");
+    expect(body.peers["biblio-express"].entity).toBe("users");
+  });
+
   it("returns 404 when hospital is missing", async () => {
     const res = await app.inject({
       method: "GET",
