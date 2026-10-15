@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { contractVersion } from "../http/apiVersion";
 import { traceIdentifiers } from "../observability/trace-context";
 import { IHospitalService } from "../services/contracts";
 import { handleControllerError } from "./baseController";
@@ -51,7 +52,7 @@ export class HospitalController {
       const local = await this.hospitalService.getLast();
       return reply.status(200).send({
         api: "hospitaline",
-        version: "2.0.0",
+        version: contractVersion(request.url),
         ...traceIdentifiers(request.traceId),
         entity: "hospital",
         local
@@ -88,7 +89,10 @@ export class HospitalController {
       if (!hospital) {
         return reply.status(404).send({ message: "Hospital not found" });
       }
-      return reply.status(200).send(hospital);
+      return reply.status(200).send({
+        ...hospital,
+        version: contractVersion(request.url)
+      });
     } catch (error) {
       return handleControllerError(error, reply);
     }

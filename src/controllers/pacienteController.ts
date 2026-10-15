@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { contractVersion } from "../http/apiVersion";
 import { traceIdentifiers } from "../observability/trace-context";
 import { IPacienteService } from "../services/contracts";
 import { handleControllerError } from "./baseController";
@@ -57,7 +58,7 @@ export class PacienteController {
       const local = await this.pacienteService.getLast();
       return reply.status(200).send({
         api: "hospitaline",
-        version: "2.0.0",
+        version: contractVersion(request.url),
         ...traceIdentifiers(request.traceId),
         entity: "paciente",
         local
@@ -94,7 +95,10 @@ export class PacienteController {
       if (!paciente) {
         return reply.status(404).send({ message: "Paciente not found" });
       }
-      return reply.status(200).send(paciente);
+      return reply.status(200).send({
+        ...paciente,
+        version: contractVersion(request.url)
+      });
     } catch (error) {
       return handleControllerError(error, reply);
     }

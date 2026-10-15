@@ -12,7 +12,7 @@ declare module "fastify" {
 }
 
 export function requestLogger(request: FastifyRequest, reply: FastifyReply): void {
-  if (!request.url.startsWith("/api/v2")) {
+  if (!request.url.startsWith("/api/v2") && !request.url.startsWith("/api/v3")) {
     return;
   }
 
@@ -59,7 +59,7 @@ export function requestLogger(request: FastifyRequest, reply: FastifyReply): voi
 
 export function registerRequestLogger(app: FastifyInstance): void {
   app.addHook("onRequest", async (request) => {
-    if (request.url.startsWith("/api/v2")) {
+    if (request.url.startsWith("/api/v2") || request.url.startsWith("/api/v3")) {
       request.otelStartNs = process.hrtime.bigint();
     }
   });
