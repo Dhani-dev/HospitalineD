@@ -1,5 +1,5 @@
 locals {
-  api_env = merge(var.peer_env, {
+  api_env = {
     NODE_ENV                    = "production"
     DB_HOST                     = "/cloudsql/${google_sql_database_instance.postgres.connection_name}"
     DB_PORT                     = "5432"
@@ -10,7 +10,7 @@ locals {
     OTEL_SERVICE_NAME           = "hospitaline-api"
     OTEL_EXPORTER_OTLP_ENDPOINT = ""
     ORCHESTRATOR_API_URL        = ""
-  })
+  }
 }
 
 resource "google_cloud_run_v2_service" "api" {

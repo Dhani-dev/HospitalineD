@@ -45,19 +45,6 @@ variable "redis_memory_gb" {
   default     = 1
 }
 
-variable "peer_env" {
-  description = "URLs de las APIs compañeras (Azure y AWS)."
-  type        = map(string)
-  default = {
-    USERS_API_URL        = "http://48.217.130.84"
-    USERS_LAST_PATH      = "/api/v2/users/last"
-    USERS_LIST_PATH      = "/api/users"
-    ENTRENADOR_API_URL   = "http://a9882c6970a5d426d9e2f19b89c56119-333357364.us-east-1.elb.amazonaws.com"
-    ENTRENADOR_LAST_PATH = "/api/v2/entrenador/last"
-    ENTRENADOR_LIST_PATH = "/entrenador"
-  }
-}
-
 variable "labels" {
   description = "Etiquetas comunes."
   type        = map(string)
