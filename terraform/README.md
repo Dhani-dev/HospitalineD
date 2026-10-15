@@ -130,7 +130,8 @@ En Postman, usa esa URL como base y agrega la ruta del endpoint
 | `GET` | `{URL}/health` | — |
 | `POST` | `{URL}/api/v1/hospitals` | `{"name":"Hospital Central","address":"Calle 10","city":"Medellín","phone":"6041234567"}` |
 | `GET` | `{URL}/api/v1/hospitals` | — |
-| `GET` | `{URL}/api/v2/hospitals/last` | — |
+| `GET` | `{URL}/api/v3/hospitals/last` | — |
+| `POST` | `{URL}/api/v3/hospitals` | `{"name":"Hospital Central","address":"Calle 10","city":"Medellín","phone":"6041234567"}` |
 
 `/health` devuelve `"backend": "redis"` y `"connected": true` cuando la API
 está usando Memorystore.
