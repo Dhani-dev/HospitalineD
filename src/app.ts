@@ -7,6 +7,7 @@ import { pacienteRoutes } from "./routes/pacienteRoutes";
 import { registerObservability } from "./observability";
 import { metricsContentType, renderMetrics } from "./observability/metrics";
 import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
+import { ApiVersion } from "./http/apiVersion";
 
 export function buildApp(services: ServiceContainer) {
   const app = Fastify({ logger: true });
@@ -42,10 +43,13 @@ export function buildApp(services: ServiceContainer) {
     };
   });
 
-  const apiPrefixes = ["/api/v1", "/api/v2"];
+  const apiPrefixes: Array<{ prefix: string; version: ApiVersion }> = [
+    { prefix: "/api/v1", version: "v1" },
+    { prefix: "/api/v2", version: "v2" },
+    { prefix: "/api/v3", version: "v3" }
+  ];
 
-  for (const prefix of apiPrefixes) {
-    const version = prefix.endsWith("v2") ? "v2" : "v1";
+  for (const { prefix, version } of apiPrefixes) {
     app.register(hospitalRoutes(services, version), { prefix });
     app.register(doctorRoutes(services, version), { prefix });
     app.register(pacienteRoutes(services, version), { prefix });

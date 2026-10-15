@@ -1,21 +1,22 @@
 import { FastifyPluginAsync } from "fastify";
 import { ServiceContainer } from "../bootstrap/createServices";
 import { HospitalController } from "../controllers/hospitalController";
+import { ApiVersion, exposesPeers } from "../http/apiVersion";
 
 export const hospitalRoutes = (
   services: ServiceContainer,
-  version: "v1" | "v2"
+  version: ApiVersion
 ): FastifyPluginAsync => {
   return async (fastify) => {
     const controller = new HospitalController(services.hospitalService);
 
     fastify.get("/hospitals", controller.list);
-    if (version === "v2") {
+    if (exposesPeers(version)) {
       fastify.get("/hospitals/last", controller.getLast);
     }
     fastify.get(
       "/hospitals/:id",
-      version === "v2" ? controller.getByIdV2 : controller.getById
+      exposesPeers(version) ? controller.getByIdV2 : controller.getById
     );
     fastify.post("/hospitals", controller.create);
     fastify.put("/hospitals/:id", controller.replace);
