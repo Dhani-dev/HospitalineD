@@ -144,7 +144,7 @@ El cliente intenta primero `.../last` y, si aún no existe, usa el listado y tom
 
 Las APIs de los compañeros deben consumir `GET /api/v2/hospitals/last` (y opcionalmente `/api/v1/hospitals` como fallback).
 
-`/api/v3` repite el contrato de v2 (CRUD, `/last` y peers). La diferencia es el prefijo y `"version": "3.0.0"` en `/last` y en `GET /:id`. Es la versión que se muestra en el despliegue de Terraform. v1 y v2 siguen activas.
+`/api/v3` repite el contrato de v2 (CRUD, `/last` y peers). La diferencia es el prefijo y que `/last` y `GET /:id` responden la versión del artefacto y su track (`"version": "3.1.0", "track": "stable"`). Es la versión stable del despliegue canary. v1 y v2 siguen activas. `/api/v4` es la versión canary; ver [Seguimiento #3](#seguimiento-3--canary-deployments).
 
 El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` queda vacío a propósito: él llamará a Hospitaline con esos headers; Hospitaline no lo invoca.
 
@@ -167,8 +167,8 @@ Este es el artefacto de la nube GCP (Integrante B): Redis con TTL e invalidació
 
 | Qué se cachea | Clave | TTL | Invalidación |
 |---|---|---|---|
-| Hospital / doctor / paciente por id | `hospitaline:local:{entidad}:{id}` | `CACHE_TTL_SECONDS` (60s) | POST, PUT, PATCH, DELETE |
-| Último registro local | `hospitaline:local:{entidad}:last` | 60s | POST, PUT, PATCH, DELETE |
+| Hospital / doctor / paciente por id | `hospitaline:v4:local:{entidad}:{id}` (v3: `hospitaline:local:…`) | `CACHE_TTL_SECONDS` (60s) | POST, PUT, PATCH, DELETE |
+| Último registro local | `hospitaline:v4:local:{entidad}:last` (v3: `hospitaline:local:…`) | 60s | POST, PUT, PATCH, DELETE |
 | `users` de biblio-express | `hospitaline:peer:biblio-express:users:last` | `PEER_CACHE_TTL_SECONDS` (30s) | solo TTL |
 | `entrenador` de Pokenetes | `hospitaline:peer:pokenetes:entrenador:last` | 30s | solo TTL |
 
@@ -398,9 +398,12 @@ Las rutas están agrupadas bajo:
 | `GET` | `/api/v2/doctors/:id` | Doctor local + last de `users` y `entrenador` |
 | `GET` | `/api/v2/pacientes/last` | Último paciente local, sin peers |
 | `GET` | `/api/v2/pacientes/:id` | Paciente local + last de `users` y `entrenador` |
-| `GET` | `/api/v3/hospitals/last` | Igual que v2, con `"version": "3.0.0"` |
-| `GET` | `/api/v3/hospitals/:id` | Igual que v2, con `"version": "3.0.0"` |
-| `POST` | `/api/v3/hospitals` | Crear hospital en la versión 3 |
+| `GET` | `/api/v3/hospitals/last` | Igual que v2, con `version` y `track` del artefacto |
+| `GET` | `/api/v3/hospitals/:id` | Igual que v2, con `version` y `track` del artefacto |
+| `POST` | `/api/v3/hospitals` | Crear hospital en la versión 3 (ignora `bed_capacity`) |
+| `GET` | `/api/v4/hospitals/last` | Como v3 + `bed_capacity` y `capacity_band` |
+| `POST` | `/api/v4/hospitals` | Crear hospital con `bed_capacity` opcional |
+| `GET` | `/api/hospitals/last` | Alias de la versión propia de cada imagen (v3 en stable, v4 en canary) |
 | `POST` | `/api/v1/hospitals` | Crear hospital |
 | `PUT` | `/api/v1/hospitals/:id` | Reemplazar hospital |
 | `PATCH` | `/api/v1/hospitals/:id` | Actualizar parcialmente |
@@ -505,7 +508,8 @@ La estructura de la base de datos se encuentra en:
 migrations/
 ├── 001_create_hospital.sql
 ├── 002_create_doctor.sql
-└── 003_create_paciente.sql
+├── 003_create_paciente.sql
+└── 004_expand_hospital_bed_capacity.sql   # Expand de api/v4
 ```
 
 Las entidades principales son:
