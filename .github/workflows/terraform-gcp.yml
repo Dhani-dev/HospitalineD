@@ -8,16 +8,10 @@ on:
         type: choice
         options: [apply, destroy]
         default: apply
-  push:
-    branches: [main]
-    paths:
-      - terraform/**
-      - src/**
-      - migrations/**
-      - Dockerfile
-      - package.json
-      - package-lock.json
-      - .github/workflows/terraform-gcp.yml
+      stable_ref:
+        description: "Ref de git que queda como stable (100% del tráfico, sin canary)"
+        type: string
+        default: v3.1.0
 
 concurrency:
   group: terraform-gcp
@@ -28,7 +22,8 @@ env:
   REGION: us-central1
   TF_VAR_project_id: project-39d0c894-3885-4211-89d
   TF_STATE_BUCKET: project-39d0c894-3885-4211-89d-hospitaline-tfstate
-  ACTION: ${{ github.event.inputs.action || 'apply' }}
+  ACTION: ${{ inputs.action }}
+  STABLE_REF: ${{ inputs.stable_ref }}
 
 jobs:
   terraform:
@@ -39,6 +34,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: google-github-actions/auth@v2
         with:
@@ -68,14 +65,13 @@ jobs:
             -target=google_sql_database.app \
             -target=google_sql_user.app
 
-      - name: Build and push the API image
+      - name: Publish the stable image by digest
         if: env.ACTION == 'apply'
         run: |
-          REPO="$(terraform output -raw image_repository)"
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
-          docker build --platform linux/amd64 -t "$REPO:${GITHUB_SHA::7}" ..
-          docker push "$REPO:${GITHUB_SHA::7}"
-          echo "TF_VAR_api_image=$REPO:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          read -r VERSION IMAGE < <(../scripts/canary/publish-image.sh "$STABLE_REF")
+          echo "TF_VAR_stable_version=$VERSION" >> "$GITHUB_ENV"
+          echo "TF_VAR_stable_image=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Run database migrations
         if: env.ACTION == 'apply'
@@ -89,8 +85,9 @@ jobs:
         if: env.ACTION == 'apply'
         run: |
           URL="$(terraform output -raw api_url)"
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$URL/health"
-          echo "### API desplegada: $URL" >> "$GITHUB_STEP_SUMMARY"
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -D - -o /dev/null "$URL/health" \
+            | grep -i "x-app-version: $TF_VAR_stable_version; track=stable"
+          echo "### Stable $TF_VAR_stable_version desplegada: $URL" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform destroy
         if: env.ACTION == 'destroy'
