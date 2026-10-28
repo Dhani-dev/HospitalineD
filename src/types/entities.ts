@@ -6,6 +6,7 @@ export type Hospital = {
   address: string;
   city: string;
   phone: string;
+  bed_capacity?: number | null;
   created_at: string;
   updated_at: string;
 };

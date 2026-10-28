@@ -9,7 +9,8 @@ export type HospitalFilters = {
 };
 
 // Lista explícita: una columna aditiva de otra versión (Expand) no se filtra a esta API.
-const HOSPITAL_COLUMNS = "id, name, address, city, phone, created_at, updated_at";
+const HOSPITAL_COLUMNS =
+  "id, name, address, city, phone, bed_capacity, created_at, updated_at";
 
 export class HospitalRepository {
   constructor(private readonly db: Pool) {}
@@ -45,15 +46,17 @@ export class HospitalRepository {
         name,
         address,
         city,
-        phone
+        phone,
+        bed_capacity
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING ${HOSPITAL_COLUMNS}`,
       [
         payload.name,
         payload.address,
         payload.city,
-        payload.phone
+        payload.phone,
+        payload.bed_capacity ?? null
       ]
     );
 
@@ -64,22 +67,23 @@ export class HospitalRepository {
     id: string,
     payload: NewHospital
   ): Promise<Hospital | null> {
+    const values: unknown[] = [payload.name, payload.address, payload.city, payload.phone];
+    const keepsCapacity = payload.bed_capacity === undefined;
+    if (!keepsCapacity) {
+      values.push(payload.bed_capacity);
+    }
+    values.push(id);
+
     const result = await this.db.query(
       `UPDATE hospital
        SET
          name = $1,
          address = $2,
          city = $3,
-         phone = $4
-       WHERE id = $5
+         phone = $4${keepsCapacity ? "" : ",\n         bed_capacity = $5"}
+       WHERE id = $${values.length}
        RETURNING ${HOSPITAL_COLUMNS}`,
-      [
-        payload.name,
-        payload.address,
-        payload.city,
-        payload.phone,
-        id
-      ]
+      values
     );
 
     return result.rows[0] ?? null;
@@ -110,6 +114,11 @@ export class HospitalRepository {
     if (payload.phone !== undefined) {
       fields.push(`phone = $${values.length + 1}`);
       values.push(payload.phone);
+    }
+
+    if (payload.bed_capacity !== undefined) {
+      fields.push(`bed_capacity = $${values.length + 1}`);
+      values.push(payload.bed_capacity);
     }
 
     if (fields.length === 0) {
@@ -181,6 +190,7 @@ export class HospitalRepository {
       "address",
       "city",
       "phone",
+      "bed_capacity",
       "created_at",
       "updated_at"
     ];
