@@ -38,6 +38,11 @@ output "canary_version" {
   value = var.canary_version
 }
 
+output "dashboard_url" {
+  description = "Tablero stable vs canary en Cloud Monitoring."
+  value       = "https://console.cloud.google.com/monitoring/dashboards/builder/${element(split("/", google_monitoring_dashboard.canary.id), 3)}?project=${var.project_id}"
+}
+
 output "image_repository" {
   description = "Repositorio de Artifact Registry donde el pipeline publica la imagen."
   value       = local.image_repository

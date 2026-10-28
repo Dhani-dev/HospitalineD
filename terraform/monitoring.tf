@@ -162,3 +162,52 @@ resource "google_monitoring_alert_policy" "canary_latency" {
     content   = "SLO de abortar violado (canary/slo.json). La función ${local.rollback_function} devuelve el canary a 0% y stable a 100%."
   }
 }
+
+resource "google_monitoring_dashboard" "canary" {
+  dashboard_json = jsonencode({
+    displayName = "Hospitaline: stable (v3) vs canary (v4)"
+    mosaicLayout = {
+      columns = 48
+      tiles = concat(
+        [
+          {
+            xPos   = 0
+            yPos   = 0
+            width  = 48
+            height = 8
+            widget = {
+              title = "Plan canary"
+              text = {
+                format  = "MARKDOWN"
+                content = "Etapas 0% → 10% → 50% → 100%, horneado de 2 min y mínimo 50 peticiones canary por etapa. Promover: 5xx ≤ 1% y p95 ≤ 800 ms (≤ 1.5× baseline). Abortar: 5xx > 2% o p95 > 2 s → canary 0%, stable 100%."
+              }
+            }
+          }
+        ],
+        local.chart_tiles,
+        [
+          {
+            xPos   = 24
+            yPos   = 8 + 4 * 16
+            width  = 12
+            height = 16
+            widget = {
+              title      = "Alerta 5xx canary"
+              alertChart = { name = google_monitoring_alert_policy.canary_errors.name }
+            }
+          },
+          {
+            xPos   = 36
+            yPos   = 8 + 4 * 16
+            width  = 12
+            height = 16
+            widget = {
+              title      = "Alerta latencia canary"
+              alertChart = { name = google_monitoring_alert_policy.canary_latency.name }
+            }
+          }
+        ]
+      )
+    }
+  })
+}
