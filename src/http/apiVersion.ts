@@ -1,9 +1,15 @@
+import { APP_VERSION, appTrack, Track } from "./release";
+
 export type ApiVersion = "v1" | "v2" | "v3";
 
-export type ContractVersion = "2.0.0" | "3.0.0";
+export type VersionFields =
+  | { version: "2.0.0" }
+  | { version: string; track: Track };
 
-export function contractVersion(url: string): ContractVersion {
-  return url.split("?")[0].startsWith("/api/v3") ? "3.0.0" : "2.0.0";
+export function versionFields(version: ApiVersion): VersionFields {
+  return version === "v1" || version === "v2"
+    ? { version: "2.0.0" }
+    : { version: APP_VERSION, track: appTrack() };
 }
 
 export function exposesPeers(version: ApiVersion): boolean {

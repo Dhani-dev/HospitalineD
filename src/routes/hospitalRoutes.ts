@@ -8,7 +8,7 @@ export const hospitalRoutes = (
   version: ApiVersion
 ): FastifyPluginAsync => {
   return async (fastify) => {
-    const controller = new HospitalController(services.hospitalService);
+    const controller = new HospitalController(services.hospitalService, version);
 
     fastify.get("/hospitals", controller.list);
     if (exposesPeers(version)) {

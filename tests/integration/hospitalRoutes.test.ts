@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app";
 import { ServiceContainer } from "../../src/bootstrap/createServices";
+import { APP_VERSION } from "../../src/http/release";
 import { Hospital } from "../../src/types/entities";
 import { isoNow } from "../helpers/testUtils";
 
@@ -206,17 +207,18 @@ describe("Hospital routes", () => {
     expect(body["trace-id"]).toBeNull();
   });
 
-  it("GET /api/v3/hospitals/last reports version 3.0.0", async () => {
+  it("GET /api/v3/hospitals/last reports the release version and track", async () => {
     const res = await app.inject({ method: "GET", url: "/api/v3/hospitals/last" });
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body.version).toBe("3.0.0");
+    expect(body.version).toBe(APP_VERSION);
+    expect(body.track).toBe("stable");
     expect(body.peers).toBeUndefined();
     expect(body.local.id).toEqual(expect.any(String));
   });
 
-  it("GET /api/v3/hospitals/:id reports version 3.0.0 and keeps peers", async () => {
+  it("GET /api/v3/hospitals/:id reports the release and keeps peers", async () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v3/hospitals/11111111-1111-1111-1111-111111111111"
@@ -224,8 +226,17 @@ describe("Hospital routes", () => {
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body.version).toBe("3.0.0");
+    expect(body.version).toBe(APP_VERSION);
+    expect(body.track).toBe("stable");
     expect(body.peers["biblio-express"].entity).toBe("users");
+  });
+
+  it("sends X-App-Version on every response, including 404", async () => {
+    const ok = await app.inject({ method: "GET", url: "/api/v3/hospitals/last" });
+    const missing = await app.inject({ method: "GET", url: "/nope" });
+
+    expect(ok.headers["x-app-version"]).toBe(`${APP_VERSION}; track=stable`);
+    expect(missing.headers["x-app-version"]).toBe(`${APP_VERSION}; track=stable`);
   });
 
   it("returns 404 when hospital is missing", async () => {

@@ -8,9 +8,14 @@ import { registerObservability } from "./observability";
 import { metricsContentType, renderMetrics } from "./observability/metrics";
 import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
 import { ApiVersion } from "./http/apiVersion";
+import { appTrack, appVersionHeader, APP_VERSION } from "./http/release";
 
 export function buildApp(services: ServiceContainer) {
   const app = Fastify({ logger: true });
+
+  app.addHook("onRequest", async (_request, reply) => {
+    reply.header("X-App-Version", appVersionHeader());
+  });
 
   app.register(queryMethodPlugin);
   registerObservability(app);
@@ -29,12 +34,15 @@ export function buildApp(services: ServiceContainer) {
       orchestrator: isOrchestratorConfigured() ? "configured" : "placeholder"
     };
 
+    const release = { version: APP_VERSION, track: appTrack() };
+
     if (!cache) {
-      return { status: "ok", cache: { backend: "disabled" }, telemetry };
+      return { status: "ok", ...release, cache: { backend: "disabled" }, telemetry };
     }
 
     return {
       status: "ok",
+      ...release,
       cache: {
         ...cache.stats(),
         connected: await cache.ping()
