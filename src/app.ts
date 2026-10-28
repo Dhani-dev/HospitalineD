@@ -8,7 +8,7 @@ import { registerObservability } from "./observability";
 import { metricsContentType, renderMetrics } from "./observability/metrics";
 import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
 import { ApiVersion } from "./http/apiVersion";
-import { appTrack, appVersionHeader, APP_VERSION } from "./http/release";
+import { appTrack, appVersionHeader, APP_VERSION, CURRENT_API } from "./http/release";
 
 export function buildApp(services: ServiceContainer) {
   const app = Fastify({ logger: true });
@@ -54,7 +54,8 @@ export function buildApp(services: ServiceContainer) {
   const apiPrefixes: Array<{ prefix: string; version: ApiVersion }> = [
     { prefix: "/api/v1", version: "v1" },
     { prefix: "/api/v2", version: "v2" },
-    { prefix: "/api/v3", version: "v3" }
+    { prefix: "/api/v3", version: "v3" },
+    { prefix: "/api", version: CURRENT_API }
   ];
 
   for (const { prefix, version } of apiPrefixes) {

@@ -231,6 +231,15 @@ describe("Hospital routes", () => {
     expect(body.peers["biblio-express"].entity).toBe("users");
   });
 
+  it("serves the release's own API on the unversioned /api alias", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/hospitals/last" });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe(APP_VERSION);
+    expect(body.track).toBe("stable");
+  });
+
   it("sends X-App-Version on every response, including 404", async () => {
     const ok = await app.inject({ method: "GET", url: "/api/v3/hospitals/last" });
     const missing = await app.inject({ method: "GET", url: "/nope" });
