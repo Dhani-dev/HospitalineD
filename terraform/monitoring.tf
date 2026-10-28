@@ -3,6 +3,71 @@ locals {
   canary_selector = "${local.run_selector},revision_name=~\".*-canary-.*\""
   requests        = "run_googleapis_com:request_count"
   latency_buckets = "run_googleapis_com:request_latencies_bucket"
+
+  latency_by_revision = {
+    for q in ["50", "95", "99"] : "p${q}" =>
+    "label_replace(histogram_quantile(0.${q}, sum by (le, revision_name) (rate(${local.latency_buckets}{${local.run_selector}}[1m]))), \"quantile\", \"p${q}\", \"\", \"\")"
+  }
+
+  # Cada gráfica separa stable y canary por revision_name (…-stable-3-1-0 / …-canary-4-0-0).
+  charts = [
+    {
+      title   = "Tráfico (req/s) por revisión"
+      queries = ["sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"]
+    },
+    {
+      title   = "Tasa de errores 5xx por revisión (abortar > 2%)"
+      queries = ["sum by (revision_name) (rate(${local.requests}{${local.run_selector},response_code_class=\"5xx\"}[1m])) / sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"]
+    },
+    {
+      title   = "Tasa de errores 4xx por revisión"
+      queries = ["sum by (revision_name) (rate(${local.requests}{${local.run_selector},response_code_class=\"4xx\"}[1m])) / sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"]
+    },
+    {
+      title   = "Instancias activas por revisión"
+      queries = ["sum by (revision_name) (run_googleapis_com:container_instance_count{${local.run_selector}})"]
+    },
+    {
+      title   = "Latencia p50 / p95 / p99 (ms) por revisión (abortar p95 > 2000)"
+      queries = values(local.latency_by_revision)
+      width   = 48
+    },
+    {
+      title   = "Saturación CPU p95 por revisión"
+      queries = ["histogram_quantile(0.95, sum by (le, revision_name) (rate(run_googleapis_com:container_cpu_utilizations_bucket{${local.run_selector}}[1m])))"]
+    },
+    {
+      title   = "Saturación memoria p95 por revisión"
+      queries = ["histogram_quantile(0.95, sum by (le, revision_name) (rate(run_googleapis_com:container_memory_utilizations_bucket{${local.run_selector}}[1m])))"]
+    },
+    {
+      title   = "Negocio: hospitales registrados por track"
+      queries = ["sum by (track, version) (increase(logging_googleapis_com:user_${google_logging_metric.hospitals_registered.name}{${local.run_selector}}[1m]))"]
+    },
+  ]
+
+  # La latencia (índice 4) ocupa la fila completa; las siguientes se corren un lugar.
+  chart_tiles = [
+    for i, chart in local.charts : {
+      xPos   = try(chart.width, 24) == 48 ? 0 : ((i < 4 ? i : i + 1) % 2) * 24
+      yPos   = 8 + floor((i < 4 ? i : i + 1) / 2) * 16
+      width  = try(chart.width, 24)
+      height = 16
+      widget = {
+        title = chart.title
+        xyChart = {
+          chartOptions = { mode = "COLOR" }
+          dataSets = [
+            for query in chart.queries : {
+              timeSeriesQuery = { prometheusQuery = query }
+              plotType        = "LINE"
+              targetAxis      = "Y1"
+            }
+          ]
+        }
+      }
+    }
+  ]
 }
 
 resource "google_logging_metric" "hospitals_registered" {
