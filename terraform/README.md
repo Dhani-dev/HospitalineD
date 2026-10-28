@@ -9,6 +9,8 @@ Infraestructura de la API Hospitaline en Google Cloud, sin Kubernetes.
 | Memorystore for Redis | `memorystore.tf` | Caché distribuida (TTL + invalidación) |
 | Artifact Registry | `artifact_registry.tf` | Imágenes Docker de la API |
 | Secret Manager | `secret_manager.tf` | `DB_NAME`, `DB_USER`, `DB_PASSWORD` |
+| Cloud Monitoring | `monitoring.tf` | Tablero stable vs canary, alertas 5xx/p95, métrica de negocio |
+| Pub/Sub + Cloud Functions | `rollback.tf` | Rollback automático del canary al dispararse una alerta |
 
 Soporte: `apis.tf` (APIs de GCP), `network.tf` (VPC + conector Serverless VPC
 Access para llegar a Redis), `iam.tf` (cuenta de servicio de Cloud Run),
@@ -58,12 +60,11 @@ terraform apply -target=google_artifact_registry_repository.api \
 # 2. Imagen de la API
 REPO="$(terraform output -raw image_repository)"
 gcloud auth configure-docker us-central1-docker.pkg.dev
-docker build --platform linux/amd64 -t "$REPO:v1" ..
-docker push "$REPO:v1"
+read -r VERSION IMAGE < <(../scripts/canary/publish-image.sh v3.1.0)
 ./scripts/migrate.sh   # brew install cloud-sql-proxy libpq
 
-# 3. Todo lo demás
-terraform apply -var="api_image=$REPO:v1"
+# 3. Todo lo demás (stable al 100 %, sin canary)
+terraform apply -var="stable_image=$IMAGE" -var="stable_version=$VERSION"
 terraform output api_url
 ```
 
@@ -74,16 +75,22 @@ Actions ven la misma infraestructura.
 
 Usa el secreto de GitHub `GCP_SA_KEY` (JSON de la cuenta de despliegue).
 
-Se ejecuta solo con cada push a `main` que toque `terraform/`, `src/`,
-`migrations/`, `Dockerfile` o `package*.json`, o a mano en **Actions →
-Terraform GCP → Run workflow → apply**. Hace:
+Se ejecuta solo a mano en **Actions → Terraform GCP → Run workflow**. Ya no
+corre con push a `main`, para que un merge no encienda Cloud SQL ni Memorystore.
+Con `apply` hace:
 
 1. Crea el bucket del estado si no existe y corre `terraform init`.
 2. Crea Artifact Registry y Cloud SQL.
-3. Construye y publica la imagen con el SHA del commit.
-4. Corre `migrations/*.sql` (solo si las tablas no existen).
-5. Crea Memorystore, el conector VPC, los secretos y Cloud Run.
-6. Llama a `/health` y deja la URL en el resumen del job.
+3. Publica la imagen de `stable_ref` (por defecto `v3.1.0`) con su SemVer y la
+   pasa a Cloud Run por digest. Las etiquetas del registro son inmutables.
+4. Corre `migrations/*.sql`: las tablas base si no existen y siempre el Expand
+   idempotente de v4.
+5. Crea Memorystore, el conector VPC, los secretos, Cloud Run (stable al 100 %),
+   el tablero, las alertas y la función de rollback.
+6. Comprueba que `/health` responda `X-App-Version: <versión>; track=stable`.
+
+El canary se despliega con **Actions → Canary GCP (api/v4)**; las etapas, el
+SLO y la demo están en el [README principal](../README.md#seguimiento-3--canary-deployments).
 
 La primera ejecución tarda unos 15–20 min (Cloud SQL y Memorystore son lentos).
 
@@ -92,6 +99,7 @@ La primera ejecución tarda unos 15–20 min (Cloud SQL y Memorystore son lentos
 ```bash
 terraform output api_url
 gcloud run services describe hospitaline-tf-api --region us-central1
+terraform output traffic_split canary_url stable_url dashboard_url
 gcloud sql instances list
 gcloud redis instances list --region us-central1
 gcloud artifacts docker images list \
