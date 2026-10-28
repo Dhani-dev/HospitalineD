@@ -8,6 +8,7 @@ import { registerObservability } from "./observability";
 import { metricsContentType, renderMetrics } from "./observability/metrics";
 import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder";
 import { ApiVersion } from "./http/apiVersion";
+import { registerFaultInjection } from "./http/faultInjection";
 import { appTrack, appVersionHeader, APP_VERSION, CURRENT_API } from "./http/release";
 
 export function buildApp(services: ServiceContainer) {
@@ -19,6 +20,7 @@ export function buildApp(services: ServiceContainer) {
 
   app.register(queryMethodPlugin);
   registerObservability(app);
+  registerFaultInjection(app);
 
   app.get("/metrics", async (_request, reply) => {
     reply.header("Content-Type", metricsContentType);
