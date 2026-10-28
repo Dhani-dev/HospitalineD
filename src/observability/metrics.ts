@@ -24,6 +24,13 @@ const httpRequestDurationSeconds = new client.Histogram({
   registers: [registry]
 });
 
+const hospitalsRegisteredTotal = new client.Counter({
+  name: "hospitaline_hospitals_registered_total",
+  help: "Business metric: hospitals created, by release track and bed capacity presence",
+  labelNames: ["track", "version", "with_capacity"] as const,
+  registers: [registry]
+});
+
 const cacheHitsTotal = new client.Counter({
   name: "hospitaline_cache_hits_total",
   help: "Cache hits for local entities and peer last records",
@@ -63,6 +70,23 @@ export function recordHttpRequest(
   const release = releaseLabels();
   httpRequestsTotal.inc({ method, route, status: String(status), ...release });
   httpRequestDurationSeconds.observe({ method, route, ...release }, durationSeconds);
+}
+
+export function recordHospitalRegistered(withCapacity: boolean): void {
+  const release = releaseLabels();
+  hospitalsRegisteredTotal.inc({ ...release, with_capacity: String(withCapacity) });
+
+  if (process.env.NODE_ENV !== "test") {
+    console.log(
+      JSON.stringify({
+        severity: "INFO",
+        message: "hospital registered",
+        event: "hospital_registered",
+        with_capacity: withCapacity,
+        ...release
+      })
+    );
+  }
 }
 
 function releaseLabels() {

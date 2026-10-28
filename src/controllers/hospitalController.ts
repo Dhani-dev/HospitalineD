@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ApiVersion, versionFields } from "../http/apiVersion";
+import { recordHospitalRegistered } from "../observability/metrics";
 import { traceIdentifiers } from "../observability/trace-context";
 import { IHospitalService } from "../services/contracts";
 import { handleControllerError } from "./baseController";
@@ -108,6 +109,7 @@ export class HospitalController {
     try {
       const payload = hospitalCreateSchema.parse(request.body);
       const created = await this.hospitalService.create(payload);
+      recordHospitalRegistered(false);
       return reply.status(201).send(created);
     } catch (error) {
       return handleControllerError(error, reply);
