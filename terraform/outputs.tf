@@ -3,6 +3,41 @@ output "api_url" {
   value       = google_cloud_run_v2_service.api.uri
 }
 
+output "service_name" {
+  value = google_cloud_run_v2_service.api.name
+}
+
+output "stable_url" {
+  description = "URL directa a la revisión stable (tag stable)."
+  value       = try(one([for t in google_cloud_run_v2_service.api.traffic_statuses : t.uri if t.tag == "stable"]), "")
+}
+
+output "canary_url" {
+  description = "URL directa a la revisión canary (etapa 0 y pruebas de humo)."
+  value       = try(one([for t in google_cloud_run_v2_service.api.traffic_statuses : t.uri if t.tag == "canary"]), "")
+}
+
+output "traffic_split" {
+  description = "Porcentaje público por track."
+  value       = local.traffic_split
+}
+
+output "stable_image" {
+  value = var.stable_image
+}
+
+output "stable_version" {
+  value = var.stable_version
+}
+
+output "canary_image" {
+  value = var.canary_image
+}
+
+output "canary_version" {
+  value = var.canary_version
+}
+
 output "image_repository" {
   description = "Repositorio de Artifact Registry donde el pipeline publica la imagen."
   value       = local.image_repository
