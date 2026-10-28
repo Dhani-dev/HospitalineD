@@ -2,9 +2,9 @@ import type { ApiVersion } from "./apiVersion";
 
 export type Track = "stable" | "canary";
 
-export const APP_VERSION = "3.1.0";
+export const APP_VERSION = "4.0.0";
 
-export const CURRENT_API: ApiVersion = "v3";
+export const CURRENT_API: ApiVersion = "v4";
 
 export function appTrack(): Track {
   return process.env.APP_TRACK === "canary" ? "canary" : "stable";

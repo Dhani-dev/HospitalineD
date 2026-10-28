@@ -55,6 +55,7 @@ export function buildApp(services: ServiceContainer) {
     { prefix: "/api/v1", version: "v1" },
     { prefix: "/api/v2", version: "v2" },
     { prefix: "/api/v3", version: "v3" },
+    { prefix: "/api/v4", version: "v4" },
     { prefix: "/api", version: CURRENT_API }
   ];
 
