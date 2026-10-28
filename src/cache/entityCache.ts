@@ -1,6 +1,6 @@
 import { LocalEntityName } from "../types/entities";
 import { CacheClient } from "./cacheClient";
-import { cacheKeys } from "./keys";
+import { CACHE_GENERATIONS, cacheKeys } from "./keys";
 
 export class EntityCache {
   constructor(
@@ -23,10 +23,11 @@ export class EntityCache {
   }
 
   invalidateLocal(entity: LocalEntityName, id?: string): Promise<void> {
-    const keys = [cacheKeys.last(entity)];
-    if (id) {
-      keys.push(cacheKeys.local(entity, id));
-    }
+    const keys = CACHE_GENERATIONS.flatMap((prefix) =>
+      id
+        ? [cacheKeys.last(entity, prefix), cacheKeys.local(entity, id, prefix)]
+        : [cacheKeys.last(entity, prefix)]
+    );
     return this.cache.del(keys);
   }
 }
