@@ -148,6 +148,115 @@ Las APIs de los compañeros deben consumir `GET /api/v2/hospitals/last` (y opcio
 
 El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` queda vacío a propósito: él llamará a Hospitaline con esos headers; Hospitaline no lo invoca.
 
+## Seguimiento #3 — Canary Deployments
+
+**Proveedor:** Google Cloud. **Plataforma:** Cloud Run (servicio `hospitaline-tf-api`) con Terraform. **Observabilidad:** Cloud Monitoring nativo (tablero, alertas y métrica de negocio desde Cloud Logging).
+
+`api/v3` (stable) y `api/v4` (canary) conviven como **dos revisiones del mismo servicio Cloud Run**, cada una con su imagen fijada por digest SHA256. Cloud Run reparte el tráfico público entre ellas por porcentaje; ambas usan el mismo Cloud SQL y el mismo Memorystore.
+
+```mermaid
+flowchart LR
+  C[Cliente / bake.mjs] -->|URL pública| R{Cloud Run<br/>traffic split}
+  T[Pruebas internas] -->|https://canary---…run.app| CA
+  R -->|100 - p %| ST["revisión stable<br/>v3.1.0 · APP_TRACK=stable"]
+  R -->|p %| CA["revisión canary<br/>v4.0.0 · APP_TRACK=canary"]
+  ST --> DB[(Cloud SQL<br/>hospital + bed_capacity nullable)]
+  CA --> DB
+  ST --> RD[(Memorystore<br/>hospitaline:local:*)]
+  CA --> RD2[(Memorystore<br/>hospitaline:v4:local:*)]
+  ST -. métricas por revisión .-> M[Cloud Monitoring<br/>tablero + alertas]
+  CA -. métricas por revisión .-> M
+  M -->|5xx > 2% o p95 > 2 s| PS[Pub/Sub] --> F[Cloud Function<br/>canary-rollback]
+  F -->|canary 0% · stable 100%| R
+```
+
+### Identificación de versión y track
+
+Todas las respuestas llevan la cabecera `X-App-Version`. En `/api/v3`, `/api/v4`, `/api` y `/health` el cuerpo trae también `version` y `track`:
+
+```http
+X-App-Version: 4.0.0; track=canary
+```
+
+```json
+{ "api": "hospitaline", "version": "4.0.0", "track": "canary", "entity": "hospital", "local": { "bed_capacity": 250, "capacity_band": "medium" } }
+```
+
+La versión sale del código (`src/http/release.ts`) y el track de la variable `APP_TRACK` que Terraform fija por revisión. `/api/hospitals…` es el punto de entrada para el reparto: cada imagen lo sirve con su propia versión (v3 en stable, v4 en canary).
+
+### Cambio funcional de api/v4
+
+Los hospitales tienen capacidad de camas: `bed_capacity` (entero ≥ 0, opcional) y el derivado `capacity_band` (`unknown` si es null, `small` < 100, `medium` < 500, `large`). v3 no los ve ni los escribe.
+
+### Expand/Contract (datos, caché y rollback)
+
+| Fase | Qué se hace | Estado |
+|---|---|---|
+| Expand | `004_expand_hospital_bed_capacity.sql`: columna **nullable** + check ≥ 0, idempotente | En este release |
+| Migrar | v4 escribe `bed_capacity`; v3 sigue leyendo/escribiendo sin conocerla | En este release |
+| Contract | `NOT NULL` o borrar columnas viejas, solo cuando ya no quede ninguna revisión v3 | Release futuro, nunca junto al Expand |
+
+- El repositorio lista columnas explícitas (no `SELECT *`). Un `PUT` de v3 no envía `bed_capacity`, así que no borra la capacidad que guardó v4.
+- La caché usa un prefijo por generación (`hospitaline:v4:` vs `hospitaline:`). Una escritura de v4 invalida las dos generaciones; una escritura de stable invalida solo la suya y la copia v4 expira por TTL (60 s).
+- No hay colas en esta nube. El rollback solo mueve tráfico: la base queda intacta y v3 funciona con la columna nueva.
+
+### Plan de etapas
+
+Definido en [`canary/slo.json`](canary/slo.json) antes de desplegar:
+
+| Etapa | Canary público | Horneado | Muestra mínima | Acceso |
+|---|---:|---|---|---|
+| 0 | 0% | humo (20 peticiones) | — | solo `https://canary---…run.app` |
+| 1 | 10% | 2 min | 50 peticiones canary | URL pública |
+| 2 | 50% | 2 min | 50 peticiones canary | URL pública |
+| 3 | 100% | promovido | — | URL pública |
+
+**Promover** si 5xx del canary ≤ 1 %, p95 ≤ 800 ms y p95 ≤ 1,5 × el p95 de stable (con piso de 100 ms para no comparar ruido). **Pausar** si la muestra es < 50 o está entre promover y abortar: el tráfico se queda donde está. **Abortar** si 5xx > 2 % o p95 > 2 s: canary 0 %, stable 100 %.
+
+Por qué dos puertas: Cloud Run publica sus métricas con hasta 3 min de retraso, más que el horneado. El **quality gate del pipeline** ([`scripts/canary/bake.mjs`](scripts/canary/bake.mjs)) genera la carga, mide en el cliente cada respuesta por track y decide al final de los 2 min. La **alerta de Cloud Monitoring** es la red de seguridad del lado servidor: si el canary se degrada fuera del pipeline (o después de promover), Pub/Sub dispara la función `canary-rollback`.
+
+### Inyección de fallos (solo canary)
+
+El hook de [`src/http/faultInjection.ts`](src/http/faultInjection.ts) se registra únicamente si `APP_TRACK=canary` y solo actúa sobre `/api/*`:
+
+| Cabecera | Efecto en canary | Efecto en stable |
+|---|---|---|
+| `x-fault-mode: errors` | responde 500 | ninguno |
+| `x-fault-mode: latency` | espera `FAULT_LATENCY_MS` (2500 ms) | ninguno |
+
+### Pipeline
+
+Artefactos inmutables: Artifact Registry tiene etiquetas inmutables, la imagen se etiqueta con su SemVer y Cloud Run la recibe por digest (`REPO@sha256:…`). Cada revisión se llama `hospitaline-tf-api-{track}-{versión}`: código nuevo exige subir la versión.
+
+1. **Actions → Terraform GCP → apply** con `stable_ref=v3.1.0`: infraestructura + stable al 100 %.
+2. **Actions → Canary GCP (api/v4)**:
+   - `stage=rollout`, `fault_mode=none`: 0 → 10 → 50 → 100 con horneado y gate (**promoción exitosa**).
+   - `stage=rollout`, `fault_mode=errors` o `latency`: el gate de la etapa 1 aborta y deja el canary en 0 % (**rollback**).
+   - `stage=0|1|2|3|rollback`: una etapa suelta.
+3. Para consolidar v4 como nueva stable: **Terraform GCP → apply** con `stable_ref=v4.0.0`.
+
+Local (desde `terraform/`, con las `TF_VAR_*` exportadas): `../scripts/canary/rollout.sh rollout`.
+
+### Tablero
+
+`terraform output dashboard_url` → **Monitoring → Dashboards → "Hospitaline: stable (v3) vs canary (v4)"**. Cada gráfica separa las revisiones: tráfico, 5xx, 4xx, latencia p50/p95/p99, CPU, memoria, instancias, hospitales registrados por track y el estado de las dos alertas. **Cloud Run → hospitaline-tf-api → Revisiones** muestra el porcentaje asignado.
+
+### Demostración en vivo
+
+```bash
+cd terraform
+URL="$(terraform output -raw api_url)"; CANARY="$(terraform output -raw canary_url)"
+
+# (a) canary al 0 %: solo por su URL con tag
+curl -si "$CANARY/api/v4/hospitals/last" | grep -i x-app-version
+
+# (b) reparto real por porcentaje
+for i in $(seq 1 200); do curl -s -o /dev/null -D - "$URL/api/hospitals/last" | grep -i x-app-version; done | sort | uniq -c
+
+# (d) fallo inyectado: solo el canary responde 500
+curl -si -H 'x-fault-mode: errors' "$URL/api/hospitals/last" | grep -iE '^HTTP|x-app-version'
+```
+
 ## Observabilidad (Integrante B, GCP)
 
 Daniela no administra Grafana. Expone **`GET /metrics`** (Prometheus) para que el compañero scrape el tablero unificado. Cloud Monitoring / Cloud Logging cubren la nube nativa. Guía: [`observability/README.md`](observability/README.md).
