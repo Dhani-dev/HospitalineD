@@ -8,12 +8,15 @@ export type HospitalFilters = {
   phone?: string;
 };
 
+// Lista explícita: una columna aditiva de otra versión (Expand) no se filtra a esta API.
+const HOSPITAL_COLUMNS = "id, name, address, city, phone, created_at, updated_at";
+
 export class HospitalRepository {
   constructor(private readonly db: Pool) {}
 
   async list(): Promise<Hospital[]> {
     const result = await this.db.query(
-      `SELECT * FROM hospital`
+      `SELECT ${HOSPITAL_COLUMNS} FROM hospital`
     );
 
     return result.rows;
@@ -21,7 +24,7 @@ export class HospitalRepository {
 
   async getById(id: string): Promise<Hospital | null> {
     const result = await this.db.query(
-      `SELECT * FROM hospital WHERE id = $1`,
+      `SELECT ${HOSPITAL_COLUMNS} FROM hospital WHERE id = $1`,
       [id]
     );
 
@@ -30,7 +33,7 @@ export class HospitalRepository {
 
   async getLast(): Promise<Hospital | null> {
     const result = await this.db.query(
-      `SELECT * FROM hospital ORDER BY created_at DESC, id DESC LIMIT 1`
+      `SELECT ${HOSPITAL_COLUMNS} FROM hospital ORDER BY created_at DESC, id DESC LIMIT 1`
     );
 
     return result.rows[0] ?? null;
@@ -45,7 +48,7 @@ export class HospitalRepository {
         phone
       )
       VALUES ($1, $2, $3, $4)
-      RETURNING *`,
+      RETURNING ${HOSPITAL_COLUMNS}`,
       [
         payload.name,
         payload.address,
@@ -69,7 +72,7 @@ export class HospitalRepository {
          city = $3,
          phone = $4
        WHERE id = $5
-       RETURNING *`,
+       RETURNING ${HOSPITAL_COLUMNS}`,
       [
         payload.name,
         payload.address,
@@ -119,7 +122,7 @@ export class HospitalRepository {
       `UPDATE hospital
        SET ${fields.join(", ")}
        WHERE id = $${values.length}
-       RETURNING *`,
+       RETURNING ${HOSPITAL_COLUMNS}`,
       values
     );
 
@@ -195,7 +198,7 @@ export class HospitalRepository {
     const dataValues = [...values, pageSize, offset];
 
     const dataResult = await this.db.query(
-      `SELECT *
+      `SELECT ${HOSPITAL_COLUMNS}
        FROM hospital
        ${whereClause}
        ORDER BY ${sortField} ${sortDirection}
