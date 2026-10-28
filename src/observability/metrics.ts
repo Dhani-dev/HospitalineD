@@ -1,5 +1,6 @@
 import { metrics } from "@opentelemetry/api";
 import client from "prom-client";
+import { APP_VERSION, appTrack } from "../http/release";
 
 export const registry = new client.Registry();
 
@@ -10,16 +11,16 @@ client.collectDefaultMetrics({
 
 const httpRequestsTotal = new client.Counter({
   name: "hospitaline_http_requests_total",
-  help: "HTTP requests to api/v2 by method, route and status",
-  labelNames: ["method", "route", "status"] as const,
+  help: "HTTP requests to api/v2+ by method, route, status and release track",
+  labelNames: ["method", "route", "status", "track", "version"] as const,
   registers: [registry]
 });
 
 const httpRequestDurationSeconds = new client.Histogram({
   name: "hospitaline_http_request_duration_seconds",
-  help: "HTTP latency for api/v2 endpoints (p50/p95 via histogram_quantile)",
-  labelNames: ["method", "route"] as const,
-  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+  help: "HTTP latency for api/v2+ (p50/p95/p99 via histogram_quantile)",
+  labelNames: ["method", "route", "track", "version"] as const,
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.8, 1, 2, 5],
   registers: [registry]
 });
 
@@ -59,9 +60,13 @@ export function recordHttpRequest(
   status: number,
   durationSeconds: number
 ): void {
-  const labels = { method, route, status: String(status) };
-  httpRequestsTotal.inc(labels);
-  httpRequestDurationSeconds.observe({ method, route }, durationSeconds);
+  const release = releaseLabels();
+  httpRequestsTotal.inc({ method, route, status: String(status), ...release });
+  httpRequestDurationSeconds.observe({ method, route, ...release }, durationSeconds);
+}
+
+function releaseLabels() {
+  return { track: appTrack(), version: APP_VERSION };
 }
 
 function otelCacheCounter(name: "hits" | "misses") {

@@ -1,6 +1,7 @@
 import { logs } from "@opentelemetry/api-logs";
 import { trace } from "@opentelemetry/api";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { APP_VERSION, appTrack } from "../http/release";
 import { recordHttpRequest } from "./metrics";
 
 export const httpLogger = logs.getLogger("hospitaline-api-gcp");
@@ -11,8 +12,12 @@ declare module "fastify" {
   }
 }
 
+function isObserved(url: string): boolean {
+  return url.startsWith("/api/") && !url.startsWith("/api/v1/");
+}
+
 export function requestLogger(request: FastifyRequest, reply: FastifyReply): void {
-  if (!request.url.startsWith("/api/v2") && !request.url.startsWith("/api/v3")) {
+  if (!isObserved(request.url)) {
     return;
   }
 
@@ -50,6 +55,8 @@ export function requestLogger(request: FastifyRequest, reply: FastifyReply): voi
         route,
         status_code: reply.statusCode,
         duration_ms: durationMs,
+        track: appTrack(),
+        version: APP_VERSION,
         trace_id: traceId,
         span_id: spanContext?.spanId
       })
@@ -59,7 +66,7 @@ export function requestLogger(request: FastifyRequest, reply: FastifyReply): voi
 
 export function registerRequestLogger(app: FastifyInstance): void {
   app.addHook("onRequest", async (request) => {
-    if (request.url.startsWith("/api/v2") || request.url.startsWith("/api/v3")) {
+    if (isObserved(request.url)) {
       request.otelStartNs = process.hrtime.bigint();
     }
   });
