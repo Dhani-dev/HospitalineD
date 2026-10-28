@@ -1,0 +1,19 @@
+{
+  "stages": [
+    { "stage": 0, "canaryPercent": 0, "bakeSeconds": 0 },
+    { "stage": 1, "canaryPercent": 10, "bakeSeconds": 120 },
+    { "stage": 2, "canaryPercent": 50, "bakeSeconds": 120 },
+    { "stage": 3, "canaryPercent": 100, "bakeSeconds": 0 }
+  ],
+  "minRequestsPerTrack": 50,
+  "baselineFloorMs": 100,
+  "promote": {
+    "maxErrorRate": 0.01,
+    "maxP95Ms": 800,
+    "maxP95RatioToBaseline": 1.5
+  },
+  "abort": {
+    "maxErrorRate": 0.02,
+    "maxP95Ms": 2000
+  }
+}
