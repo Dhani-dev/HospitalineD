@@ -13,4 +13,4 @@ dist/
 *.tfstate
 *.tfstate.*
 *.tfplan
-terraform.tfvars
+terraform.tfvarsterraform/.build/

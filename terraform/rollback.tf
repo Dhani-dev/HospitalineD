@@ -57,3 +57,67 @@ resource "google_project_iam_member" "rollback_trigger" {
   role    = each.value
   member  = "serviceAccount:${google_service_account.rollback.email}"
 }
+
+data "archive_file" "rollback" {
+  type        = "zip"
+  source_dir  = "${path.module}/functions/canary-rollback"
+  output_path = "${path.module}/.build/canary-rollback.zip"
+}
+
+resource "google_storage_bucket" "functions" {
+  name                        = "${var.project_id}-${var.name}-functions"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = true
+  labels                      = var.labels
+}
+
+resource "google_storage_bucket_object" "rollback" {
+  name   = "canary-rollback-${data.archive_file.rollback.output_md5}.zip"
+  bucket = google_storage_bucket.functions.name
+  source = data.archive_file.rollback.output_path
+}
+
+resource "google_cloudfunctions2_function" "rollback" {
+  name     = local.rollback_function
+  location = var.region
+  labels   = var.labels
+
+  build_config {
+    runtime     = "nodejs22"
+    entry_point = "rollback"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.functions.name
+        object = google_storage_bucket_object.rollback.name
+      }
+    }
+  }
+
+  service_config {
+    min_instance_count    = 0
+    max_instance_count    = 1
+    available_memory      = "256M"
+    timeout_seconds       = 60
+    service_account_email = google_service_account.rollback.email
+    environment_variables = {
+      PROJECT_ID = var.project_id
+      REGION     = var.region
+      SERVICE    = google_cloud_run_v2_service.api.name
+    }
+  }
+
+  event_trigger {
+    trigger_region        = var.region
+    event_type            = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic          = google_pubsub_topic.canary_alerts.id
+    retry_policy          = "RETRY_POLICY_DO_NOT_RETRY"
+    service_account_email = google_service_account.rollback.email
+  }
+
+  depends_on = [
+    google_project_iam_member.rollback_trigger,
+    google_cloud_run_v2_service_iam_member.rollback_developer,
+    google_service_account_iam_member.rollback_act_as_api,
+  ]
+}
