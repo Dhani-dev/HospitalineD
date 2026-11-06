@@ -156,10 +156,14 @@ El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` 
 
 ```mermaid
 flowchart LR
+  GA[GitHub Actions<br/>Canary GCP] -->|imagen SemVer| AR[(Artifact Registry<br/>tags inmutables)]
+  GA -->|terraform apply canary_percent| R
+  AR -->|digest sha256| ST
+  AR -->|digest sha256| CA
   C[Cliente / bake.mjs] -->|URL pública| R{Cloud Run<br/>traffic split}
   T[Pruebas internas] -->|https://canary---…run.app| CA
-  R -->|100 - p %| ST["revisión stable<br/>v3.1.0 · APP_TRACK=stable"]
-  R -->|p %| CA["revisión canary<br/>v4.0.0 · APP_TRACK=canary"]
+  R -->|100 - p %| ST["revisión stable-3-1-0<br/>v3.1.0 · APP_TRACK=stable"]
+  R -->|p %| CA["revisión canary-4-0-1<br/>imagen 4.0.1 · APP_TRACK=canary"]
   ST --> DB[(Cloud SQL<br/>hospital + bed_capacity nullable)]
   CA --> DB
   ST --> RD[(Memorystore<br/>hospitaline:local:*)]
@@ -169,6 +173,20 @@ flowchart LR
   M -->|5xx > 2% o p95 > 2 s| PS[Pub/Sub] --> F[Cloud Function<br/>canary-rollback]
   F -->|canary 0% · stable 100%| R
 ```
+
+### Enrutamiento de tráfico
+
+El reparto lo hace Cloud Run, sin balanceador ni proxy propio. El servicio tiene dos destinos de tráfico por nombre de revisión en [`terraform/cloud_run.tf`](terraform/cloud_run.tf): stable con `100 - canary_percent` y canary con `canary_percent`. La variable solo acepta 0, 10, 50 o 100. Cambiar la etapa es un `terraform apply` con otro porcentaje; no se reconstruye la imagen.
+
+| URL | Destino |
+|---|---|
+| `https://hospitaline-tf-api-5t4ef3amoa-uc.a.run.app` | Reparto por porcentaje entre stable y canary |
+| `https://stable---hospitaline-tf-api-5t4ef3amoa-uc.a.run.app` | Solo stable (tag `stable`) |
+| `https://canary---hospitaline-tf-api-5t4ef3amoa-uc.a.run.app` | Solo canary (tag `canary`), también al 0 % |
+
+No hay sesiones fijas: cada petición se sortea sola, así que el mismo cliente puede caer en una revisión y luego en otra. Por eso la URL pública de la demo es `/api/hospitals/last`, que existe en las dos imágenes; `/api/v4` solo existe en el canary. El porcentaje configurado se ve en **Cloud Run → hospitaline-tf-api → Revisiones**.
+
+La revisión canary se llama `canary-4-0-1`: la etiqueta `4.0.0` es inmutable y el parche que quitó `peers` de v4 tuvo que publicarse como imagen nueva. La revisión `canary-4-0-0` queda con 0 %.
 
 ### Identificación de versión y track
 
@@ -204,12 +222,14 @@ Los hospitales tienen capacidad de camas: `bed_capacity` (entero ≥ 0, opcional
 
 Definido en [`canary/slo.json`](canary/slo.json) antes de desplegar:
 
-| Etapa | Canary público | Horneado | Muestra mínima | Acceso |
-|---|---:|---|---|---|
-| 0 | 0% | humo (20 peticiones) | — | solo `https://canary---…run.app` |
-| 1 | 10% | 2 min | 50 peticiones canary | URL pública |
-| 2 | 50% | 2 min | 50 peticiones canary | URL pública |
-| 3 | 100% | promovido | — | URL pública |
+| Etapa | Canary público | Stable público | Tiempo de observación | Muestra mínima | Acceso |
+|---|---:|---:|---|---|---|
+| 0 | 0% | 100% | sin espera, humo de 20 peticiones | — | solo `https://canary---…run.app` |
+| 1 | 10% | 90% | 2 min a 8 req/s (~960 peticiones) | 50 peticiones canary | URL pública |
+| 2 | 50% | 50% | 2 min a 8 req/s (~960 peticiones) | 50 peticiones canary | URL pública |
+| 3 | 100% | 0% | sin espera, ya promovido | — | URL pública |
+
+Si la etapa 1 o 2 aborta, el pipeline vuelve a la etapa 0: canary 0 %, stable 100 %.
 
 **Promover** si 5xx del canary ≤ 1 %, p95 ≤ 800 ms y p95 ≤ 1,5 × el p95 de stable (con piso de 100 ms para no comparar ruido). **Pausar** si la muestra es < 50 o está entre promover y abortar: el tráfico se queda donde está. **Abortar** si 5xx > 2 % o p95 > 2 s: canary 0 %, stable 100 %.
 
@@ -239,7 +259,7 @@ Local (desde `terraform/`, con las `TF_VAR_*` exportadas): `../scripts/canary/ro
 
 ### Tablero
 
-`terraform output dashboard_url` → **Monitoring → Dashboards → "Hospitaline: stable (v3) vs canary (v4)"**. Cada gráfica separa las revisiones: tráfico, 5xx, 4xx, latencia p50/p95/p99, CPU, memoria, instancias, hospitales registrados por track y el estado de las dos alertas. **Cloud Run → hospitaline-tf-api → Revisiones** muestra el porcentaje asignado.
+`terraform output dashboard_url` → **Monitoring → Dashboards → "Hospitaline: stable (v3) vs canary (v4)"**. Cada gráfica separa la versión de cada revisión (`3.1.0`, `4.0.0`, `4.0.1`): tráfico, 5xx, 4xx, latencia p50/p95/p99, CPU, memoria, instancias, hospitales registrados en 24 h y el estado de las dos alertas. **Cloud Run → hospitaline-tf-api → Revisiones** muestra el porcentaje asignado.
 
 ### Demostración en vivo
 
@@ -253,8 +273,9 @@ curl -si "$CANARY/api/v4/hospitals/last" | grep -i x-app-version
 # (b) reparto real por porcentaje
 for i in $(seq 1 200); do curl -s -o /dev/null -D - "$URL/api/hospitals/last" | grep -i x-app-version; done | sort | uniq -c
 
-# (d) fallo inyectado: solo el canary responde 500
-curl -si -H 'x-fault-mode: errors' "$URL/api/hospitals/last" | grep -iE '^HTTP|x-app-version'
+# (d) fallo inyectado: el canary responde 500 y stable ignora la cabecera
+curl -si -H 'x-fault-mode: errors' "$CANARY/api/v4/hospitals/last" | grep -iE '^HTTP|x-app-version'
+curl -si -H 'x-fault-mode: errors' "$(terraform output -raw stable_url)/api/v3/hospitals/last" | grep -iE '^HTTP|x-app-version'
 ```
 
 ## Observabilidad (Integrante B, GCP)
