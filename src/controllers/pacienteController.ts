@@ -91,6 +91,20 @@ export class PacienteController {
     reply: FastifyReply
   ) => {
     try {
+      if (this.version === "v4") {
+        const local = await this.pacienteService.getById(request.params.id);
+        if (!local) {
+          return reply.status(404).send({ message: "Paciente not found" });
+        }
+        return reply.status(200).send({
+          api: "hospitaline",
+          ...versionFields(this.version),
+          ...traceIdentifiers(request.traceId),
+          entity: "paciente",
+          local
+        });
+      }
+
       const paciente = await this.pacienteService.getByIdV2(
         request.params.id,
         request.traceId

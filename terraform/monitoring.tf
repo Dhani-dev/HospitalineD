@@ -4,45 +4,63 @@ locals {
   requests        = "run_googleapis_com:request_count"
   latency_buckets = "run_googleapis_com:request_latencies_bucket"
 
-  latency_by_revision = {
+  # stable-3-1-0 → 3.1.0, canary-4-0-0 → 4.0.0, canary-4-0-1 → 4.0.1.
+  as_version = "label_replace(%s, \"version\", \"$1.$2.$3\", \"revision_name\", \".*-([0-9]+)-([0-9]+)-([0-9]+)$\")"
+
+  requests_by_version = format(
+    local.as_version,
+    "sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"
+  )
+  errors_5xx_by_version = format(
+    local.as_version,
+    "sum by (revision_name) (rate(${local.requests}{${local.run_selector},response_code_class=\"5xx\"}[1m]))"
+  )
+  errors_4xx_by_version = format(
+    local.as_version,
+    "sum by (revision_name) (rate(${local.requests}{${local.run_selector},response_code_class=\"4xx\"}[1m]))"
+  )
+
+  latency_by_version = {
     for q in ["50", "95", "99"] : "p${q}" =>
-    "label_replace(histogram_quantile(0.${q}, sum by (le, revision_name) (rate(${local.latency_buckets}{${local.run_selector}}[1m]))), \"quantile\", \"p${q}\", \"\", \"\")"
+    "label_replace(histogram_quantile(0.${q}, sum by (le, version) (${format(local.as_version, "sum by (le, revision_name) (rate(${local.latency_buckets}{${local.run_selector}}[1m]))")})), \"quantile\", \"p${q}\", \"\", \"\")"
   }
 
-  # Cada gráfica separa stable y canary por revision_name (…-stable-3-1-0 / …-canary-4-0-0).
   charts = [
     {
-      title   = "Tráfico (req/s) por revisión"
-      queries = ["sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"]
+      title   = "Tráfico (req/s) por versión"
+      queries = ["sum by (version) (${local.requests_by_version})"]
     },
     {
-      title   = "Tasa de errores 5xx por revisión (abortar > 2%)"
-      queries = ["sum by (revision_name) (rate(${local.requests}{${local.run_selector},response_code_class=\"5xx\"}[1m])) / sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"]
+      title = "Tasa de errores 5xx por versión (abortar > 2%)"
+      # Sin 5xx, request_count no tiene serie para esa clase y el cociente queda vacío.
+      # `or … * 0` dibuja 0 en cada versión que sí tuvo tráfico.
+      queries = ["sum by (version) (${local.errors_5xx_by_version}) / sum by (version) (${local.requests_by_version}) or sum by (version) (${local.requests_by_version}) * 0"]
     },
     {
-      title   = "Tasa de errores 4xx por revisión"
-      queries = ["sum by (revision_name) (rate(${local.requests}{${local.run_selector},response_code_class=\"4xx\"}[1m])) / sum by (revision_name) (rate(${local.requests}{${local.run_selector}}[1m]))"]
+      title   = "Tasa de errores 4xx por versión"
+      queries = ["sum by (version) (${local.errors_4xx_by_version}) / sum by (version) (${local.requests_by_version}) or sum by (version) (${local.requests_by_version}) * 0"]
     },
     {
-      title   = "Instancias activas por revisión"
-      queries = ["sum by (revision_name) (run_googleapis_com:container_instance_count{${local.run_selector}})"]
+      title   = "Instancias activas por versión"
+      queries = ["sum by (version) (${format(local.as_version, "sum by (revision_name) (run_googleapis_com:container_instance_count{${local.run_selector}})")})"]
     },
     {
-      title   = "Latencia p50 / p95 / p99 (ms) por revisión (abortar p95 > 2000)"
-      queries = values(local.latency_by_revision)
+      title   = "Latencia p50 / p95 / p99 (ms) por versión (abortar p95 > 2000)"
+      queries = values(local.latency_by_version)
       width   = 48
     },
     {
-      title   = "Saturación CPU p95 por revisión"
-      queries = ["histogram_quantile(0.95, sum by (le, revision_name) (rate(run_googleapis_com:container_cpu_utilizations_bucket{${local.run_selector}}[1m])))"]
+      title   = "Saturación CPU p95 por versión"
+      queries = ["histogram_quantile(0.95, sum by (le, version) (${format(local.as_version, "sum by (le, revision_name) (rate(run_googleapis_com:container_cpu_utilizations_bucket{${local.run_selector}}[1m]))")}))"]
     },
     {
-      title   = "Saturación memoria p95 por revisión"
-      queries = ["histogram_quantile(0.95, sum by (le, revision_name) (rate(run_googleapis_com:container_memory_utilizations_bucket{${local.run_selector}}[1m])))"]
+      title   = "Saturación memoria p95 por versión"
+      queries = ["histogram_quantile(0.95, sum by (le, version) (${format(local.as_version, "sum by (le, revision_name) (rate(run_googleapis_com:container_memory_utilizations_bucket{${local.run_selector}}[1m]))")}))"]
     },
     {
-      title   = "Negocio: hospitales registrados por track"
-      queries = ["sum by (track, version) (increase(logging_googleapis_com:user_${google_logging_metric.hospitals_registered.name}{${local.run_selector}}[1m]))"]
+      title = "Negocio: hospitales registrados en 24 h por versión"
+      # increase[1m] solo tiene un punto en el minuto del POST y el resto del rango sale vacío.
+      queries = ["sum by (track, version) (label_replace(increase(logging_googleapis_com:user_${google_logging_metric.hospitals_registered.name}{${local.run_selector}}[24h]), \"version\", \"$1.$2.$3\", \"revision_name\", \".*-([0-9]+)-([0-9]+)-([0-9]+)$\"))"]
     },
   ]
 
@@ -179,7 +197,7 @@ resource "google_monitoring_dashboard" "canary" {
               title = "Plan canary"
               text = {
                 format  = "MARKDOWN"
-                content = "Etapas 0% → 10% → 50% → 100%, horneado de 2 min y mínimo 50 peticiones canary por etapa. Promover: 5xx ≤ 1% y p95 ≤ 800 ms (≤ 1.5× baseline). Abortar: 5xx > 2% o p95 > 2 s → canary 0%, stable 100%."
+                content = "Etapas 0% → 10% → 50% → 100%, observación de 2 min y mínimo 50 peticiones canary por etapa. Promover: 5xx ≤ 1% y p95 ≤ 800 ms (≤ 1.5× baseline). Abortar: 5xx > 2% o p95 > 2 s → canary 0%, stable 100%."
               }
             }
           }

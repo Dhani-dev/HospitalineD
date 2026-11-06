@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "rollout = 0→10→50→100 con horneado y quality gate; 0-3 = una etapa; rollback = canary 0%"
+        description: "rollout = 0→10→50→100 con observación y quality gate; 0-3 = una etapa; rollback = canary 0%"
         type: choice
         options: [rollout, "0", "1", "2", "3", rollback]
         default: rollout
       fault_mode:
-        description: "Fallo inyectado en el canary durante el horneado (x-fault-mode)"
+        description: "Fallo inyectado en el canary durante la observación (x-fault-mode)"
         type: choice
         options: [none, errors, latency]
         default: none

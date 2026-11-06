@@ -107,6 +107,20 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
+      if (this.version === "v4") {
+        const local = await this.hospitalService.getById(request.params.id);
+        if (!local) {
+          return reply.status(404).send({ message: "Hospital not found" });
+        }
+        return reply.status(200).send({
+          api: "hospitaline",
+          ...versionFields(this.version),
+          ...traceIdentifiers(request.traceId),
+          entity: "hospital",
+          local: this.present(local)
+        });
+      }
+
       const hospital = await this.hospitalService.getByIdV2(
         request.params.id,
         request.traceId

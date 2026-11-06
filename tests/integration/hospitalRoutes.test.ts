@@ -245,7 +245,7 @@ describe("Hospital routes", () => {
     expect(res.statusCode).toBe(200);
     expect(body.local.bed_capacity).toBe(250);
     expect(body.local.capacity_band).toBe("medium");
-    expect(body.peers.pokenetes.entity).toBe("entrenador");
+    expect(body.peers).toBeUndefined();
   });
 
   it("POST /api/v4/hospitals stores bed_capacity", async () => {
