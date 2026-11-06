@@ -11,17 +11,36 @@ locals {
     OTEL_EXPORTER_OTLP_ENDPOINT = ""
     ORCHESTRATOR_API_URL        = ""
   }
+
+  service_name  = "${var.name}-api"
+  canary_active = var.canary_image != ""
+
+  # Cloud Run conserva las revisiones anteriores: la plantilla describe la que
+  # se crea ahora (canary si existe) y el tráfico apunta a ambas por nombre.
+  revisions = {
+    stable = "${local.service_name}-stable-${replace(var.stable_version, ".", "-")}"
+    canary = "${local.service_name}-canary-${replace(var.canary_version, ".", "-")}"
+  }
+
+  template_track = local.canary_active ? "canary" : "stable"
+
+  traffic_split = local.canary_active ? {
+    stable = 100 - var.canary_percent
+    canary = var.canary_percent
+  } : { stable = 100 }
 }
 
 resource "google_cloud_run_v2_service" "api" {
-  name                = "${var.name}-api"
+  name                = local.service_name
   location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
   labels              = var.labels
 
   template {
+    revision        = local.revisions[local.template_track]
     service_account = google_service_account.api.email
+    labels          = merge(var.labels, { track = local.template_track })
 
     scaling {
       min_instance_count = 0
@@ -41,7 +60,7 @@ resource "google_cloud_run_v2_service" "api" {
     }
 
     containers {
-      image = var.api_image
+      image = local.canary_active ? var.canary_image : var.stable_image
 
       ports {
         container_port = 8080
@@ -55,7 +74,7 @@ resource "google_cloud_run_v2_service" "api" {
       }
 
       dynamic "env" {
-        for_each = local.api_env
+        for_each = merge(local.api_env, { APP_TRACK = local.template_track })
         content {
           name  = env.key
           value = env.value
@@ -79,6 +98,19 @@ resource "google_cloud_run_v2_service" "api" {
         name       = "cloudsql"
         mount_path = "/cloudsql"
       }
+    }
+  }
+
+  # Etapa 0: el canary recibe 0% público y solo se alcanza por su URL con tag
+  # (https://canary---...run.app). Ambas revisiones conservan su tag para
+  # pruebas directas y para que el rollback las encuentre.
+  dynamic "traffic" {
+    for_each = local.traffic_split
+    content {
+      type     = "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"
+      revision = local.revisions[traffic.key]
+      percent  = traffic.value
+      tag      = traffic.key
     }
   }
 

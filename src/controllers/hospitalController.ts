@@ -1,8 +1,11 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { contractVersion } from "../http/apiVersion";
+import { ApiVersion, versionFields } from "../http/apiVersion";
+import { presentHospital } from "../http/hospitalContract";
+import { recordHospitalRegistered } from "../observability/metrics";
 import { traceIdentifiers } from "../observability/trace-context";
 import { IHospitalService } from "../services/contracts";
+import { Hospital } from "../types/entities";
 import { handleControllerError } from "./baseController";
 
 const hospitalCreateSchema = z.object({
@@ -12,10 +15,19 @@ const hospitalCreateSchema = z.object({
   phone: z.string().min(7)
 });
 
-const hospitalPatchSchema = hospitalCreateSchema.partial().refine(
-  (payload) => Object.keys(payload).length > 0,
-  "At least one field is required"
-);
+const hospitalV4CreateSchema = hospitalCreateSchema.extend({
+  bed_capacity: z.number().int().min(0).max(10000).nullable().optional()
+});
+
+const atLeastOneField = (payload: object) => Object.keys(payload).length > 0;
+
+const hospitalPatchSchema = hospitalCreateSchema
+  .partial()
+  .refine(atLeastOneField, "At least one field is required");
+
+const hospitalV4PatchSchema = hospitalV4CreateSchema
+  .partial()
+  .refine(atLeastOneField, "At least one field is required");
 
 const hospitalQuerySchema = z.object({
   filters: z
@@ -36,12 +48,25 @@ const hospitalQuerySchema = z.object({
 });
 
 export class HospitalController {
-  constructor(private readonly hospitalService: IHospitalService) {}
+  constructor(
+    private readonly hospitalService: IHospitalService,
+    private readonly version: ApiVersion = "v1"
+  ) {}
+
+  private present = (hospital: Hospital) => presentHospital(hospital, this.version);
+
+  private createSchema() {
+    return this.version === "v4" ? hospitalV4CreateSchema : hospitalCreateSchema;
+  }
+
+  private patchSchema() {
+    return this.version === "v4" ? hospitalV4PatchSchema : hospitalPatchSchema;
+  }
 
   list = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = await this.hospitalService.list();
-      return reply.status(200).send(data);
+      return reply.status(200).send(data.map(this.present));
     } catch (error) {
       return handleControllerError(error, reply);
     }
@@ -52,10 +77,10 @@ export class HospitalController {
       const local = await this.hospitalService.getLast();
       return reply.status(200).send({
         api: "hospitaline",
-        version: contractVersion(request.url),
+        ...versionFields(this.version),
         ...traceIdentifiers(request.traceId),
         entity: "hospital",
-        local
+        local: local && this.present(local)
       });
     } catch (error) {
       return handleControllerError(error, reply);
@@ -71,7 +96,7 @@ export class HospitalController {
       if (!hospital) {
         return reply.status(404).send({ message: "Hospital not found" });
       }
-      return reply.status(200).send(hospital);
+      return reply.status(200).send(this.present(hospital));
     } catch (error) {
       return handleControllerError(error, reply);
     }
@@ -82,6 +107,20 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
+      if (this.version === "v4") {
+        const local = await this.hospitalService.getById(request.params.id);
+        if (!local) {
+          return reply.status(404).send({ message: "Hospital not found" });
+        }
+        return reply.status(200).send({
+          api: "hospitaline",
+          ...versionFields(this.version),
+          ...traceIdentifiers(request.traceId),
+          entity: "hospital",
+          local: this.present(local)
+        });
+      }
+
       const hospital = await this.hospitalService.getByIdV2(
         request.params.id,
         request.traceId
@@ -91,7 +130,8 @@ export class HospitalController {
       }
       return reply.status(200).send({
         ...hospital,
-        version: contractVersion(request.url)
+        ...versionFields(this.version),
+        local: this.present(hospital.local)
       });
     } catch (error) {
       return handleControllerError(error, reply);
@@ -103,9 +143,10 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
-      const payload = hospitalCreateSchema.parse(request.body);
+      const payload = this.createSchema().parse(request.body);
       const created = await this.hospitalService.create(payload);
-      return reply.status(201).send(created);
+      recordHospitalRegistered(created.bed_capacity !== undefined && created.bed_capacity !== null);
+      return reply.status(201).send(this.present(created));
     } catch (error) {
       return handleControllerError(error, reply);
     }
@@ -116,12 +157,14 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
-      const payload = hospitalCreateSchema.parse(request.body);
+      const payload = this.version === "v4"
+        ? { bed_capacity: null, ...hospitalV4CreateSchema.parse(request.body) }
+        : hospitalCreateSchema.parse(request.body);
       const updated = await this.hospitalService.replace(request.params.id, payload);
       if (!updated) {
         return reply.status(404).send({ message: "Hospital not found" });
       }
-      return reply.status(200).send(updated);
+      return reply.status(200).send(this.present(updated));
     } catch (error) {
       return handleControllerError(error, reply);
     }
@@ -132,12 +175,12 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
-      const payload = hospitalPatchSchema.parse(request.body);
+      const payload = this.patchSchema().parse(request.body);
       const updated = await this.hospitalService.patch(request.params.id, payload);
       if (!updated) {
         return reply.status(404).send({ message: "Hospital not found" });
       }
-      return reply.status(200).send(updated);
+      return reply.status(200).send(this.present(updated));
     } catch (error) {
       return handleControllerError(error, reply);
     }
@@ -165,7 +208,7 @@ export class HospitalController {
     try {
       const payload = hospitalQuerySchema.parse(request.body ?? {});
       const result = await this.hospitalService.query(payload);
-      return reply.status(200).send(result);
+      return reply.status(200).send({ ...result, data: result.data.map(this.present) });
     } catch (error) {
       return handleControllerError(error, reply);
     }

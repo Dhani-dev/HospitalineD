@@ -1,4 +1,4 @@
-import type { ContractVersion } from "../http/apiVersion";
+import type { Track } from "../http/release";
 
 export type Hospital = {
   id: string;
@@ -6,6 +6,7 @@ export type Hospital = {
   address: string;
   city: string;
   phone: string;
+  bed_capacity?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -26,14 +27,16 @@ export type TraceIdentifiers = {
 
 export type LastLocalResponse<T> = TraceIdentifiers & {
   api: "hospitaline";
-  version: ContractVersion;
+  version: string;
+  track?: Track;
   entity: LocalEntityName;
   local: T | null;
 };
 
 export type EntityV2Response<T> = TraceIdentifiers & {
   api: "hospitaline";
-  version: ContractVersion;
+  version: string;
+  track?: Track;
   entity: LocalEntityName;
   local: T;
   peers: {

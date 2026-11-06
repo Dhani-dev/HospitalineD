@@ -1,0 +1,100 @@
+name: Canary GCP (api/v4)
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "rollout = 0→10→50→100 con observación y quality gate; 0-3 = una etapa; rollback = canary 0%"
+        type: choice
+        options: [rollout, "0", "1", "2", "3", rollback]
+        default: rollout
+      fault_mode:
+        description: "Fallo inyectado en el canary durante la observación (x-fault-mode)"
+        type: choice
+        options: [none, errors, latency]
+        default: none
+      bake_seconds:
+        description: "Horneado por etapa en segundos (vacío = canary/slo.json, 120)"
+        type: string
+        default: ""
+
+# Comparte grupo con terraform-gcp.yml: nunca dos applies sobre el mismo estado.
+concurrency:
+  group: terraform-gcp
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: project-39d0c894-3885-4211-89d
+  REGION: us-central1
+  TF_VAR_project_id: project-39d0c894-3885-4211-89d
+  TF_STATE_BUCKET: project-39d0c894-3885-4211-89d-hospitaline-tfstate
+  STAGE: ${{ inputs.stage }}
+  FAULT_MODE: ${{ inputs.fault_mode }}
+  BAKE_SECONDS: ${{ inputs.bake_seconds }}
+  DEPLOYS_CANARY: ${{ inputs.stage == 'rollout' || inputs.stage == '0' }}
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="bucket=$TF_STATE_BUCKET"
+
+      - name: Keep the deployed stable release
+        run: |
+          echo "TF_VAR_stable_image=$(terraform output -raw stable_image)" >> "$GITHUB_ENV"
+          echo "TF_VAR_stable_version=$(terraform output -raw stable_version)" >> "$GITHUB_ENV"
+
+      - name: Publish the canary image by digest
+        if: env.DEPLOYS_CANARY == 'true'
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          read -r VERSION IMAGE < <(../scripts/canary/publish-image.sh "$GITHUB_SHA")
+          echo "TF_VAR_canary_version=$VERSION" >> "$GITHUB_ENV"
+          echo "TF_VAR_canary_image=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Keep the deployed canary image
+        if: env.DEPLOYS_CANARY != 'true'
+        run: |
+          echo "TF_VAR_canary_image=$(terraform output -raw canary_image)" >> "$GITHUB_ENV"
+          echo "TF_VAR_canary_version=$(terraform output -raw canary_version)" >> "$GITHUB_ENV"
+
+      - name: Expand migration (additive, safe for api/v3)
+        if: env.DEPLOYS_CANARY == 'true'
+        run: ./scripts/migrate.sh
+
+      - name: Canary stage ${{ inputs.stage }}
+        run: ../scripts/canary/rollout.sh "$STAGE"
+
+      - name: Traffic after this run
+        if: always()
+        run: |
+          {
+            echo "### Tráfico final"
+            echo '```'
+            gcloud run services describe "$(terraform output -raw service_name)" --region "$REGION" --format=json \
+              | jq -r '.status.traffic[] | "\(.tag)\t\(.revisionName)\t\(.percent // 0)%"'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

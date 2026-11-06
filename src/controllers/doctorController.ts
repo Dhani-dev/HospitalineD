@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { contractVersion } from "../http/apiVersion";
+import { ApiVersion, versionFields } from "../http/apiVersion";
 import { traceIdentifiers } from "../observability/trace-context";
 import { IDoctorService } from "../services/contracts";
 import { handleControllerError } from "./baseController";
@@ -39,7 +39,10 @@ const doctorQuerySchema = z.object({
 });
 
 export class DoctorController {
-  constructor(private readonly doctorService: IDoctorService) {}
+  constructor(
+    private readonly doctorService: IDoctorService,
+    private readonly version: ApiVersion = "v1"
+  ) {}
 
   list = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -55,7 +58,7 @@ export class DoctorController {
       const local = await this.doctorService.getLast();
       return reply.status(200).send({
         api: "hospitaline",
-        version: contractVersion(request.url),
+        ...versionFields(this.version),
         ...traceIdentifiers(request.traceId),
         entity: "doctor",
         local
@@ -85,6 +88,20 @@ export class DoctorController {
     reply: FastifyReply
   ) => {
     try {
+      if (this.version === "v4") {
+        const local = await this.doctorService.getById(request.params.id);
+        if (!local) {
+          return reply.status(404).send({ message: "Doctor not found" });
+        }
+        return reply.status(200).send({
+          api: "hospitaline",
+          ...versionFields(this.version),
+          ...traceIdentifiers(request.traceId),
+          entity: "doctor",
+          local
+        });
+      }
+
       const doctor = await this.doctorService.getByIdV2(
         request.params.id,
         request.traceId
@@ -94,7 +111,7 @@ export class DoctorController {
       }
       return reply.status(200).send({
         ...doctor,
-        version: contractVersion(request.url)
+        ...versionFields(this.version)
       });
     } catch (error) {
       return handleControllerError(error, reply);

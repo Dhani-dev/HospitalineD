@@ -1,8 +1,14 @@
 locals {
   services = toset([
     "artifactregistry.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "cloudfunctions.googleapis.com",
     "compute.googleapis.com",
+    "eventarc.googleapis.com",
     "iam.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "pubsub.googleapis.com",
     "redis.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",

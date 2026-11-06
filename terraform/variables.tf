@@ -15,10 +15,45 @@ variable "name" {
   default     = "hospitaline-tf"
 }
 
-variable "api_image" {
-  description = "Imagen de la API. El pipeline la reemplaza por la publicada en Artifact Registry."
+variable "stable_image" {
+  description = "Imagen stable (api/v3) por digest: REPO@sha256:..."
   type        = string
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
+}
+
+variable "stable_version" {
+  description = "SemVer de la imagen stable; nombra su revisión de Cloud Run."
+  type        = string
+  default     = "3.1.0"
+}
+
+variable "canary_image" {
+  description = "Imagen canary (api/v4) por digest. Vacío = sin canary, 100% stable."
+  type        = string
+  default     = ""
+}
+
+variable "canary_version" {
+  description = "SemVer de la imagen canary; nombra su revisión de Cloud Run."
+  type        = string
+  default     = "4.0.0"
+}
+
+variable "canary_percent" {
+  description = "Tráfico público al canary. Etapas: 0, 10, 50, 100 (canary/slo.json)."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = contains([0, 10, 50, 100], var.canary_percent)
+    error_message = "canary_percent debe ser una etapa del plan: 0, 10, 50 o 100."
+  }
+}
+
+variable "alert_email" {
+  description = "Correo opcional para las alertas del canary."
+  type        = string
+  default     = ""
 }
 
 variable "db_name" {

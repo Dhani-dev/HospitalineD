@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app";
 import { ServiceContainer } from "../../src/bootstrap/createServices";
+import { APP_VERSION } from "../../src/http/release";
 import { Hospital } from "../../src/types/entities";
 import { isoNow } from "../helpers/testUtils";
 
@@ -16,6 +17,7 @@ describe("Hospital routes", () => {
       address: "A Street",
       city: "Bogota",
       phone: "5551234",
+      bed_capacity: 250,
       created_at: now,
       updated_at: now
     };
@@ -206,17 +208,20 @@ describe("Hospital routes", () => {
     expect(body["trace-id"]).toBeNull();
   });
 
-  it("GET /api/v3/hospitals/last reports version 3.0.0", async () => {
+  it("GET /api/v3/hospitals/last reports the release and hides bed_capacity", async () => {
     const res = await app.inject({ method: "GET", url: "/api/v3/hospitals/last" });
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body.version).toBe("3.0.0");
+    expect(body.version).toBe(APP_VERSION);
+    expect(body.track).toBe("stable");
     expect(body.peers).toBeUndefined();
     expect(body.local.id).toEqual(expect.any(String));
+    expect(body.local).not.toHaveProperty("bed_capacity");
+    expect(body.local).not.toHaveProperty("capacity_band");
   });
 
-  it("GET /api/v3/hospitals/:id reports version 3.0.0 and keeps peers", async () => {
+  it("GET /api/v3/hospitals/:id reports the release and keeps peers", async () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v3/hospitals/11111111-1111-1111-1111-111111111111"
@@ -224,8 +229,73 @@ describe("Hospital routes", () => {
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body.version).toBe("3.0.0");
+    expect(body.version).toBe(APP_VERSION);
+    expect(body.track).toBe("stable");
     expect(body.peers["biblio-express"].entity).toBe("users");
+    expect(body.local).not.toHaveProperty("bed_capacity");
+  });
+
+  it("GET /api/v4/hospitals/:id adds bed_capacity and capacity_band", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v4/hospitals/11111111-1111-1111-1111-111111111111"
+    });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.local.bed_capacity).toBe(250);
+    expect(body.local.capacity_band).toBe("medium");
+    expect(body.peers).toBeUndefined();
+  });
+
+  it("POST /api/v4/hospitals stores bed_capacity", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v4/hospitals",
+      payload: { name: "Big", address: "C", city: "Cali", phone: "5550000", bed_capacity: 800 }
+    });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(201);
+    expect(body.bed_capacity).toBe(800);
+    expect(body.capacity_band).toBe("large");
+  });
+
+  it("POST /api/v3/hospitals ignores bed_capacity", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v3/hospitals",
+      payload: { name: "Old", address: "D", city: "Cali", phone: "5550001", bed_capacity: 9 }
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(JSON.parse(res.payload)).not.toHaveProperty("bed_capacity");
+  });
+
+  it("rejects a negative bed_capacity on v4", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v4/hospitals",
+      payload: { name: "Bad", address: "E", city: "Cali", phone: "5550002", bed_capacity: -1 }
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("serves the current API on the unversioned /api alias", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/hospitals" });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body[0]).toHaveProperty("capacity_band");
+  });
+
+  it("sends X-App-Version on every response, including 404", async () => {
+    const ok = await app.inject({ method: "GET", url: "/api/v3/hospitals/last" });
+    const missing = await app.inject({ method: "GET", url: "/nope" });
+
+    expect(ok.headers["x-app-version"]).toBe(`${APP_VERSION}; track=stable`);
+    expect(missing.headers["x-app-version"]).toBe(`${APP_VERSION}; track=stable`);
   });
 
   it("returns 404 when hospital is missing", async () => {

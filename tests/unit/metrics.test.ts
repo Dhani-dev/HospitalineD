@@ -49,6 +49,8 @@ describe("metrics service", () => {
     expect(res.headers["content-type"]).toMatch(/text\/plain/);
     expect(res.payload).toContain("hospitaline_http_requests_total");
     expect(res.payload).toContain("hospitaline_http_request_duration_seconds");
+    expect(res.payload).toMatch(/hospitaline_http_requests_total\{[^}]*track="stable"/);
+    expect(res.payload).toContain("hospitaline_hospitals_registered_total");
     expect(res.payload).toContain("hospitaline_cache_hits_total");
     expect(res.payload).toContain('cache_hits_total{service_name="hospitaline-api"}');
   });

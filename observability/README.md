@@ -27,8 +27,9 @@ OTLP (opcional): cuando él te pase el endpoint del stack, se pega en el secreto
 
 | Métrica | Rubrica |
 |---|---|
-| `hospitaline_http_requests_total{method,route,status}` | tasa de peticiones y errores `/api/v2` |
-| `hospitaline_http_request_duration_seconds` | latencia p50/p95 |
+| `hospitaline_http_requests_total{method,route,status,track,version}` | tasa de peticiones y errores `/api/v2+`, separada stable/canary |
+| `hospitaline_http_request_duration_seconds{track,version}` | latencia p50/p95/p99 |
+| `hospitaline_hospitals_registered_total{track,version,with_capacity}` | métrica de negocio (también en Cloud Logging como `hospital_registered`) |
 | `hospitaline_cache_hits_total` / `hospitaline_cache_misses_total` | aciertos y fallos de caché |
 | `hospitaline_process_*` / `hospitaline_nodejs_*` | proceso del Pod (CPU/memoria) |
 

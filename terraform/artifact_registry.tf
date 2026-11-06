@@ -5,6 +5,11 @@ resource "google_artifact_registry_repository" "api" {
   description   = "Imágenes de la API Hospitaline"
   labels        = var.labels
 
+  # Una etiqueta SemVer publicada no se puede reescribir: el artefacto es inmutable.
+  docker_config {
+    immutable_tags = true
+  }
+
   depends_on = [google_project_service.required]
 }
 

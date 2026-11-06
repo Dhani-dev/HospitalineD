@@ -8,12 +8,16 @@ export type HospitalFilters = {
   phone?: string;
 };
 
+// Lista explícita: una columna aditiva de otra versión (Expand) no se filtra a esta API.
+const HOSPITAL_COLUMNS =
+  "id, name, address, city, phone, bed_capacity, created_at, updated_at";
+
 export class HospitalRepository {
   constructor(private readonly db: Pool) {}
 
   async list(): Promise<Hospital[]> {
     const result = await this.db.query(
-      `SELECT * FROM hospital`
+      `SELECT ${HOSPITAL_COLUMNS} FROM hospital`
     );
 
     return result.rows;
@@ -21,7 +25,7 @@ export class HospitalRepository {
 
   async getById(id: string): Promise<Hospital | null> {
     const result = await this.db.query(
-      `SELECT * FROM hospital WHERE id = $1`,
+      `SELECT ${HOSPITAL_COLUMNS} FROM hospital WHERE id = $1`,
       [id]
     );
 
@@ -30,7 +34,7 @@ export class HospitalRepository {
 
   async getLast(): Promise<Hospital | null> {
     const result = await this.db.query(
-      `SELECT * FROM hospital ORDER BY created_at DESC, id DESC LIMIT 1`
+      `SELECT ${HOSPITAL_COLUMNS} FROM hospital ORDER BY created_at DESC, id DESC LIMIT 1`
     );
 
     return result.rows[0] ?? null;
@@ -42,15 +46,17 @@ export class HospitalRepository {
         name,
         address,
         city,
-        phone
+        phone,
+        bed_capacity
       )
-      VALUES ($1, $2, $3, $4)
-      RETURNING *`,
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING ${HOSPITAL_COLUMNS}`,
       [
         payload.name,
         payload.address,
         payload.city,
-        payload.phone
+        payload.phone,
+        payload.bed_capacity ?? null
       ]
     );
 
@@ -61,22 +67,23 @@ export class HospitalRepository {
     id: string,
     payload: NewHospital
   ): Promise<Hospital | null> {
+    const values: unknown[] = [payload.name, payload.address, payload.city, payload.phone];
+    const keepsCapacity = payload.bed_capacity === undefined;
+    if (!keepsCapacity) {
+      values.push(payload.bed_capacity);
+    }
+    values.push(id);
+
     const result = await this.db.query(
       `UPDATE hospital
        SET
          name = $1,
          address = $2,
          city = $3,
-         phone = $4
-       WHERE id = $5
-       RETURNING *`,
-      [
-        payload.name,
-        payload.address,
-        payload.city,
-        payload.phone,
-        id
-      ]
+         phone = $4${keepsCapacity ? "" : ",\n         bed_capacity = $5"}
+       WHERE id = $${values.length}
+       RETURNING ${HOSPITAL_COLUMNS}`,
+      values
     );
 
     return result.rows[0] ?? null;
@@ -109,6 +116,11 @@ export class HospitalRepository {
       values.push(payload.phone);
     }
 
+    if (payload.bed_capacity !== undefined) {
+      fields.push(`bed_capacity = $${values.length + 1}`);
+      values.push(payload.bed_capacity);
+    }
+
     if (fields.length === 0) {
       return this.getById(id);
     }
@@ -119,7 +131,7 @@ export class HospitalRepository {
       `UPDATE hospital
        SET ${fields.join(", ")}
        WHERE id = $${values.length}
-       RETURNING *`,
+       RETURNING ${HOSPITAL_COLUMNS}`,
       values
     );
 
@@ -178,6 +190,7 @@ export class HospitalRepository {
       "address",
       "city",
       "phone",
+      "bed_capacity",
       "created_at",
       "updated_at"
     ];
@@ -195,7 +208,7 @@ export class HospitalRepository {
     const dataValues = [...values, pageSize, offset];
 
     const dataResult = await this.db.query(
-      `SELECT *
+      `SELECT ${HOSPITAL_COLUMNS}
        FROM hospital
        ${whereClause}
        ORDER BY ${sortField} ${sortDirection}

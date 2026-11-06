@@ -26,13 +26,17 @@ for _ in $(seq 1 30); do
 done
 
 if [ "$(psql -tAc "select to_regclass('public.hospital') is not null")" = "t" ]; then
-  echo "Las tablas ya existen; no hay migraciones pendientes."
-  exit 0
+  echo "Las tablas base ya existen."
+else
+  # Una sola transacción: si una migración falla, no queda nada a medias.
+  psql -v ON_ERROR_STOP=1 --single-transaction \
+    -f ../migrations/001_create_hospital.sql \
+    -f ../migrations/002_create_doctor.sql \
+    -f ../migrations/003_create_paciente.sql
+  echo "Tablas base creadas."
 fi
 
-# Una sola transacción: si una migración falla, no queda nada a medias.
+# Expand idempotente: solo agrega columnas nullable, api/v3 sigue funcionando.
 psql -v ON_ERROR_STOP=1 --single-transaction \
-  -f ../migrations/001_create_hospital.sql \
-  -f ../migrations/002_create_doctor.sql \
-  -f ../migrations/003_create_paciente.sql
-echo "Migraciones aplicadas."
+  -f ../migrations/004_expand_hospital_bed_capacity.sql
+echo "Expand v4 aplicado."

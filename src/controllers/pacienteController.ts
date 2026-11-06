@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { contractVersion } from "../http/apiVersion";
+import { ApiVersion, versionFields } from "../http/apiVersion";
 import { traceIdentifiers } from "../observability/trace-context";
 import { IPacienteService } from "../services/contracts";
 import { handleControllerError } from "./baseController";
@@ -42,7 +42,10 @@ const pacienteQuerySchema = z.object({
 });
 
 export class PacienteController {
-  constructor(private readonly pacienteService: IPacienteService) {}
+  constructor(
+    private readonly pacienteService: IPacienteService,
+    private readonly version: ApiVersion = "v1"
+  ) {}
 
   list = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -58,7 +61,7 @@ export class PacienteController {
       const local = await this.pacienteService.getLast();
       return reply.status(200).send({
         api: "hospitaline",
-        version: contractVersion(request.url),
+        ...versionFields(this.version),
         ...traceIdentifiers(request.traceId),
         entity: "paciente",
         local
@@ -88,6 +91,20 @@ export class PacienteController {
     reply: FastifyReply
   ) => {
     try {
+      if (this.version === "v4") {
+        const local = await this.pacienteService.getById(request.params.id);
+        if (!local) {
+          return reply.status(404).send({ message: "Paciente not found" });
+        }
+        return reply.status(200).send({
+          api: "hospitaline",
+          ...versionFields(this.version),
+          ...traceIdentifiers(request.traceId),
+          entity: "paciente",
+          local
+        });
+      }
+
       const paciente = await this.pacienteService.getByIdV2(
         request.params.id,
         request.traceId
@@ -97,7 +114,7 @@ export class PacienteController {
       }
       return reply.status(200).send({
         ...paciente,
-        version: contractVersion(request.url)
+        ...versionFields(this.version)
       });
     } catch (error) {
       return handleControllerError(error, reply);
