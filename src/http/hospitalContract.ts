@@ -1,5 +1,5 @@
 import { Hospital } from "../types/entities";
-import { ApiVersion } from "./apiVersion";
+import { ApiVersion, hasBedCapacity } from "./apiVersion";
 
 export type CapacityBand = "unknown" | "small" | "medium" | "large";
 
@@ -12,7 +12,7 @@ export function capacityBand(beds: number | null | undefined): CapacityBand {
 
 export function presentHospital(hospital: Hospital, version: ApiVersion) {
   const { bed_capacity, ...legacy } = hospital;
-  if (version !== "v4") {
+  if (!hasBedCapacity(version)) {
     return legacy;
   }
   return {

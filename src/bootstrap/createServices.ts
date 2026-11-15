@@ -18,6 +18,7 @@ export type ServiceContainer = {
   doctorService: IDoctorService;
   pacienteService: IPacienteService;
   cache?: CacheClient;
+  v5?: ServiceContainer;
 };
 
 export function createDefaultServices(): ServiceContainer {

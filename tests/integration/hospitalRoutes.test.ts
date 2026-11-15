@@ -248,6 +248,29 @@ describe("Hospital routes", () => {
     expect(body.peers).toBeUndefined();
   });
 
+  it("GET /api/v5/hospitals/:id keeps bed_capacity and shows the last of each peer", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v5/hospitals/11111111-1111-1111-1111-111111111111"
+    });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe("5.0.0");
+    expect(body.local.capacity_band).toBe("medium");
+    expect(body.peers["biblio-express"].entity).toBe("users");
+    expect(body.peers.pokenetes.entity).toBe("entrenador");
+  });
+
+  it("GET /api/v5/hospitals/last stays local so peers can call it without loops", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/v5/hospitals/last" });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.local).toHaveProperty("capacity_band");
+    expect(body.peers).toBeUndefined();
+  });
+
   it("POST /api/v4/hospitals stores bed_capacity", async () => {
     const res = await app.inject({
       method: "POST",
