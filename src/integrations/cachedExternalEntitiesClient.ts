@@ -7,19 +7,20 @@ export class CachedExternalEntitiesClient implements ExternalEntitiesClient {
   constructor(
     private readonly inner: ExternalEntitiesClient,
     private readonly cache: CacheClient,
-    private readonly ttlSeconds: number
+    private readonly ttlSeconds: number,
+    private readonly keyPrefix?: string
   ) {}
 
   getLastUser(traceId: string): Promise<PeerResponse> {
     return this.readPeer(
-      cacheKeys.peerLast("biblio-express", "users"),
+      cacheKeys.peerLast("biblio-express", "users", this.keyPrefix),
       () => this.inner.getLastUser(traceId)
     );
   }
 
   getLastEntrenador(traceId: string): Promise<PeerResponse> {
     return this.readPeer(
-      cacheKeys.peerLast("pokenetes", "entrenador"),
+      cacheKeys.peerLast("pokenetes", "entrenador", this.keyPrefix),
       () => this.inner.getLastEntrenador(traceId)
     );
   }

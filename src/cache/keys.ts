@@ -11,6 +11,9 @@ export const cacheKeys = {
     `${prefix}:local:${entity}:${id}`,
   last: (entity: LocalEntityName, prefix: string = CURRENT) =>
     `${prefix}:local:${entity}:last`,
-  peerLast: (api: "biblio-express" | "pokenetes", entity: "users" | "entrenador") =>
-    `hospitaline:peer:${api}:${entity}:last`
+  peerLast: (
+    api: "biblio-express" | "pokenetes",
+    entity: "users" | "entrenador",
+    prefix: string = "hospitaline"
+  ) => `${prefix}:peer:${api}:${entity}:last`
 };
