@@ -30,7 +30,7 @@ export class ExternalApiError extends Error {
   }
 }
 
-type FetchLike = (
+export type FetchLike = (
   input: string | URL,
   init?: RequestInit
 ) => Promise<Response>;
