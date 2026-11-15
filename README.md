@@ -148,6 +148,64 @@ Las APIs de los compañeros deben consumir `GET /api/v2/hospitals/last` (y opcio
 
 El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` queda vacío a propósito: él llamará a Hospitaline con esos headers; Hospitaline no lo invoca.
 
+## Seguimiento #4 — Ingeniería del Caos (Daniela, GCP)
+
+**URL para los compañeros:** `http://34.121.168.216` (IP reservada en [`terraform/gke`](terraform/gke/main.tf); no cambia al recrear el Service).
+
+| Uso | Endpoint |
+|---|---|
+| Lo que llama el coordinador (Neithan) | `GET /api/v5/hospitals/:id` → local + `last` de cada compañero |
+| Lo que llaman los compañeros (sin bucles) | `GET /api/v5/hospitals/last` → solo local |
+| Salud (liveness/readiness) | `GET /health` |
+
+`/api/v5` usa el modelo de v4 (`bed_capacity`, `capacity_band`) y el JSON de v2 con `peers`. Acepta `x-trace-id` y `traceparent`, los devuelve y los propaga a los peers.
+
+### URLs de los compañeros
+
+Se ponen en [`k8s/configmap.yaml`](k8s/configmap.yaml) y se aplican con `kubectl apply -f k8s/configmap.yaml && kubectl rollout restart deployment/hospitaline-api -n hospitaline-prod`. Vacías, el peer sale con `live: false`.
+
+| Integrante | Variable | Valor |
+|---|---|---|
+| Phol (biblio-express, Azure) | `USERS_API_URL` + `USERS_LAST_PATH` | pendiente |
+| Neithan (Pokenetes, AWS) | `ENTRENADOR_API_URL` + `ENTRENADOR_LAST_PATH` | pendiente |
+
+### Kubernetes (GKE Autopilot `hospitaline-gke`)
+
+| Requisito | Dónde |
+|---|---|
+| 2 réplicas mínimo | `replicas: 2` en [`k8s/deployment.yaml`](k8s/deployment.yaml), HPA 2–4 en [`k8s/hpa.yaml`](k8s/hpa.yaml), PDB `minAvailable: 1` en [`k8s/pdb.yaml`](k8s/pdb.yaml) |
+| Liveness y readiness | `GET /health` en el puerto 3000 |
+| Requests/limits | API 250m/512Mi → 500m/1Gi; proxy de Cloud SQL 100m/128Mi → 250m/256Mi |
+
+Evidencia: `kubectl get deploy,pods,hpa,pdb -n hospitaline-prod` y `kubectl describe deployment hospitaline-api -n hospitaline-prod`.
+
+Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.1`.
+
+Se conserva de la entrega #2: GKE, Cloud SQL `hospitaline-db` con su proxy, Redis en el clúster, Secret Manager y Grafana Cloud. Cloud Run y el canary de la entrega #3 no participan en este flujo.
+
+### Fallo asignado: dependencia con 5xx sostenidos
+
+El interruptor responde `503` en lugar de llamar al peer elegido. Solo afecta las llamadas salientes de `/api/v5`; v1–v4 usan otra caché y otro cliente.
+
+| Activación | Cómo |
+|---|---|
+| API (la que usa el experimento) | `PUT /chaos/dependency-5xx` con `x-chaos-token` y `{"target":"biblio-express","rate":1,"durationSeconds":180}` |
+| Variable de entorno | `CHAOS_DEPENDENCY_5XX=biblio-express` y `CHAOS_DEPENDENCY_5XX_RATE=1` |
+| Reversión | `DELETE /chaos/dependency-5xx`, o sola al vencer el TTL en Redis |
+
+El token está en Secret Manager (`hospitaline-chaos-token`): `terraform -chdir=terraform/gke output -raw chaos_token`. La duración máxima es 900 s. Cada `503` inyectado suma en `hospitaline_chaos_injected_faults_total` y marca el span con `chaos.injected=true`.
+
+Herramienta declarativa: **Chaos Toolkit**. Chaos Mesh no puede inyectar fallos HTTP ni de red en Autopilot porque su daemon necesita contenedores privilegiados y `hostPID`, que GKE Warden rechaza.
+
+```bash
+pip install chaostoolkit chaostoolkit-addons
+export CHAOS_TOKEN="$(terraform -chdir=terraform/gke output -raw chaos_token)"
+export K6_SCRIPT=/ruta/al/perfil-comun.js   # repositorio de Phol
+chaos run chaos/daniela-dependency-5xx.yaml
+```
+
+El experimento ([`chaos/daniela-dependency-5xx.yaml`](chaos/daniela-dependency-5xx.yaml)) declara hipótesis, parámetros de inyección, radio de impacto, duración, condiciones de aborto (safeguard sobre `/health`) y reversión.
+
 ## Seguimiento #3 — Canary Deployments
 
 **Proveedor:** Google Cloud. **Plataforma:** Cloud Run (servicio `hospitaline-tf-api`) con Terraform. **Observabilidad:** Cloud Monitoring nativo (tablero, alertas y métrica de negocio desde Cloud Logging).
