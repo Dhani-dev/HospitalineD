@@ -53,7 +53,8 @@ export function getEnvConfig(): EnvConfig {
   const dbPort = Number(process.env.DB_PORT ?? 5432);
   const dbName = process.env.DB_NAME;
   const dbUser = process.env.DB_USER;
-  const dbPassword = process.env.DB_PASSWORD;
+  // Secret Manager guarda el valor con el salto de línea final de `echo`.
+  const dbPassword = process.env.DB_PASSWORD?.replace(/[\r\n]+$/, "");
 
   if (!dbName) {
     throw new Error("Missing DB_NAME environment variable.");
