@@ -256,7 +256,7 @@ describe("Hospital routes", () => {
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body.version).toBe("5.0.0");
+    expect(body.version).toBe(APP_VERSION);
     expect(body.local.capacity_band).toBe("medium");
     expect(body.peers["biblio-express"].entity).toBe("users");
     expect(body.peers.pokenetes.entity).toBe("entrenador");
