@@ -179,7 +179,7 @@ Se ponen en [`k8s/configmap.yaml`](k8s/configmap.yaml) y se aplican con `kubectl
 
 Evidencia: `kubectl get deploy,pods,hpa,pdb -n hospitaline-prod` y `kubectl describe deployment hospitaline-api -n hospitaline-prod`.
 
-Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.2`.
+Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.3`.
 
 Se conserva de la entrega #2: GKE, Cloud SQL `hospitaline-db` con su proxy, Redis en el clúster, Secret Manager y Grafana Cloud. Cloud Run y el canary de la entrega #3 no participan en este flujo.
 
@@ -189,9 +189,10 @@ El interruptor responde `503` en lugar de llamar al peer elegido. Solo afecta la
 
 | Activación | Cómo |
 |---|---|
-| API (la que usa el experimento) | `PUT /chaos/dependency-5xx` con `x-chaos-token` y `{"target":"biblio-express","rate":1,"durationSeconds":180}` |
+| Cabecera (la que usa k6, solo en esa petición) | `x-fault-mode: dependency-down` |
+| API | `PUT /chaos/dependency-5xx` con `x-chaos-token` y `{"target":"biblio-express","rate":1,"durationSeconds":120}` |
 | Variable de entorno | `CHAOS_DEPENDENCY_5XX=biblio-express` y `CHAOS_DEPENDENCY_5XX_RATE=1` |
-| Reversión | `DELETE /chaos/dependency-5xx`, o sola al vencer el TTL en Redis |
+| Reversión | dejar de enviar la cabecera, `DELETE /chaos/dependency-5xx`, o el TTL de Redis |
 
 El token está en Secret Manager (`hospitaline-chaos-token`): `terraform -chdir=terraform/gke output -raw chaos_token`. La duración máxima es 900 s. Cada `503` inyectado suma en `hospitaline_chaos_injected_faults_total` y marca el span con `chaos.injected=true`.
 
@@ -205,6 +206,19 @@ chaos run chaos/daniela-dependency-5xx.yaml
 ```
 
 El experimento ([`chaos/daniela-dependency-5xx.yaml`](chaos/daniela-dependency-5xx.yaml)) declara hipótesis, parámetros de inyección, radio de impacto, duración, condiciones de aborto (safeguard sobre `/health`) y reversión.
+
+### Perfil común y rondas
+
+Perfil `perfil-comun-v1` de Phol, el mismo en las dos rondas: [load/profile.json](https://github.com/PholCast/biblio-express/blob/7b2aef79f872ff9e715c62aa59e49d085b6cd841/load/profile.json) en el commit `7b2aef79f872ff9e715c62aa59e49d085b6cd841`. Hasta 20 usuarios, 5 min 30 s, escalones 0→10→20→0 y ventana de fallo de 150 s a 270 s.
+
+| | Ronda 0 | Ronda 1 |
+|---|---|---|
+| Protecciones nuevas | ninguna | degradación (`X-Degraded`) y circuit breaker, con `x-peer-resilience: true` |
+| Métrica | `http_req_failed{phase:fault}` | la misma |
+| Umbral del chaos gate | `rate<=0.01` | el mismo |
+| Resultado esperado | el pipeline falla: el 503 de biblio-express tumba el flujo | el pipeline pasa: el flujo sigue en 200 |
+
+Sin la cabecera de resiliencia, el 503 inyectado responde 503 en el flujo (cascada). Con ella, el flujo responde 200, el peer sale `live: false` y, tras 5 fallos, el circuit breaker deja de llamar a biblio-express durante 30 s. Un 503 real, sin la cabecera de fallo, sigue degradando como antes. El workflow es [`.github/workflows/chaos-rounds.yml`](.github/workflows/chaos-rounds.yml). El secreto `PHOL_REPO_TOKEN` solo lee el repositorio de Phol.
 
 ## Seguimiento #3 — Canary Deployments
 

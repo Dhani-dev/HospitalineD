@@ -2,9 +2,8 @@ version: 1.0.0
 title: Hospitaline v5 con biblio-express (Azure) respondiendo 503 sostenido
 description: >
   Dado el perfil común de k6, cuando la dependencia biblio-express responda 503
-  en el 100 % de las llamadas salientes de api/v5 durante 3 minutos, el flujo
-  GET /api/v5/hospitals/:id mantendrá la tasa de éxito (200 con local y los dos
-  peers con datos) >= 99 %.
+  en el 100 % de las llamadas salientes de api/v5 durante 120 segundos, el flujo
+  GET /api/v5/hospitals/:id mantendrá la tasa de error del flujo <= 1 %.
 tags: [hospitaline, gcp, gke, dependency-unavailability, daniela]
 
 configuration:
@@ -35,14 +34,16 @@ extensions:
       call: GET USERS_API_URL + /api/v5/users
       status: 503
       rate: 1.0
-      duration_seconds: 180
-      mechanism: PUT /chaos/dependency-5xx (Redis con TTL, las dos réplicas)
+      duration_seconds: 120
+      mechanism: >
+        Cabecera x-fault-mode=dependency-down en la ventana 150–270 s del perfil
+        común. Sin x-peer-resilience el flujo responde 503. Con ella, degrada.
     metric:
       name: tasa de éxito del flujo
-      definition: 200 con local y peers.biblio-express.data distinto de null
-      threshold: ">= 99 %"
-      instrument: k6 (perfil común del repositorio de Phol)
-      window: los 180 s de inyección
+      definition: http_req_failed del flujo (status >= 400)
+      threshold: "rate<=0.01 en phase:fault"
+      instrument: k6 (perfil común de Phol, perfil-comun-v1)
+      window: segundos 150 a 270 del perfil (120 s)
     steady_state: pendiente de medir con el perfil común antes de la ronda 0
     blast_radius: >
       Solo las llamadas salientes de api/v5 hacia biblio-express. v1-v4, la base
