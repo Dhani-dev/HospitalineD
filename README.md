@@ -214,7 +214,7 @@ Perfil `perfil-comun-v1` de Phol, el mismo en las dos rondas: [load/profile.json
 | | Ronda 0 | Ronda 1 |
 |---|---|---|
 | Protecciones nuevas | ninguna | degradación (`X-Degraded`) y circuit breaker, con `x-peer-resilience: true` |
-| Métrica | `http_req_failed{phase:fault}` | la misma |
+| Métrica | tasa de error del flujo: `http_req_failed{phase:fault}` y `hospitaline_flow_requests_total` | la misma |
 | Umbral del chaos gate | `rate<=0.01` | el mismo |
 | Resultado esperado | el pipeline falla: el 503 de biblio-express tumba el flujo | el pipeline pasa: el flujo sigue en 200 |
 

@@ -2,7 +2,8 @@ import { logs } from "@opentelemetry/api-logs";
 import { trace } from "@opentelemetry/api";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { APP_VERSION, appTrack } from "../http/release";
-import { recordHttpRequest } from "./metrics";
+import { dependencyFaultRequested } from "../chaos/requestContext";
+import { recordFlowRequest, recordHttpRequest } from "./metrics";
 
 export const httpLogger = logs.getLogger("hospitaline-api-gcp");
 
@@ -10,6 +11,14 @@ declare module "fastify" {
   interface FastifyRequest {
     otelStartNs?: bigint;
   }
+}
+
+function isV5Flow(request: FastifyRequest): boolean {
+  if (request.method !== "GET") {
+    return false;
+  }
+  const route = request.routeOptions?.url ?? "";
+  return /\/api\/v5\/(hospitals|doctors|pacientes)\/:id$/.test(route);
 }
 
 function isObserved(url: string): boolean {
@@ -31,6 +40,9 @@ export function requestLogger(request: FastifyRequest, reply: FastifyReply): voi
   const traceId = request.traceId ?? spanContext?.traceId;
 
   recordHttpRequest(request.method, route, reply.statusCode, durationMs / 1000);
+  if (isV5Flow(request)) {
+    recordFlowRequest(reply.statusCode, dependencyFaultRequested());
+  }
 
   httpLogger.emit({
     severityText: reply.statusCode >= 500 ? "ERROR" : "INFO",
