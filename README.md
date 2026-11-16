@@ -220,6 +220,8 @@ Perfil `perfil-comun-v1` de Phol, el mismo en las dos rondas: [load/profile.json
 
 Sin la cabecera de resiliencia, el 503 inyectado responde 503 en el flujo (cascada). Con ella, el flujo responde 200, el peer sale `live: false` y, tras 5 fallos, el circuit breaker deja de llamar a biblio-express durante 30 s. Un 503 real, sin la cabecera de fallo, sigue degradando como antes. El workflow es [`.github/workflows/chaos-rounds.yml`](.github/workflows/chaos-rounds.yml). El secreto `PHOL_REPO_TOKEN` solo lee el repositorio de Phol.
 
+Medido el 15 de noviembre de 2026 contra GKE, con el mismo perfil. Estado estable (fase baseline): error 0 % y p95 alrededor de 140–160 ms. En la ventana de fallo la tasa de error pasó de 100 % (3835 peticiones, ronda 0, hipótesis refutada) a 0 % (3625 peticiones, ronda 1, hipótesis cumplida). La recuperación volvió a 0 % en las dos rondas. Resúmenes: [`chaos/results/ronda-0.json`](chaos/results/ronda-0.json) y [`chaos/results/ronda-1.json`](chaos/results/ronda-1.json).
+
 ## Seguimiento #3 — Canary Deployments
 
 **Proveedor:** Google Cloud. **Plataforma:** Cloud Run (servicio `hospitaline-tf-api`) con Terraform. **Observabilidad:** Cloud Monitoring nativo (tablero, alertas y métrica de negocio desde Cloud Logging).

@@ -44,7 +44,9 @@ extensions:
       threshold: "rate<=0.01 en phase:fault"
       instrument: k6 (perfil común de Phol, perfil-comun-v1)
       window: segundos 150 a 270 del perfil (120 s)
-    steady_state: pendiente de medir con el perfil común antes de la ronda 0
+    steady_state: >
+      Baseline del perfil común, 15 nov 2026: error 0% y p95 140 ms (ronda 0)
+      y 161 ms (ronda 1).
     blast_radius: >
       Solo las llamadas salientes de api/v5 hacia biblio-express. v1-v4, la base
       de datos y la llamada a pokenetes no pasan por el interruptor.
