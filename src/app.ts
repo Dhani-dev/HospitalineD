@@ -24,6 +24,15 @@ export function buildApp(services: ServiceContainer) {
   registerFaultInjection(app);
   registerChaosRoutes(app, services.chaos);
 
+  app.get("/", async () => ({
+    api: "hospitaline",
+    version: APP_VERSION,
+    track: appTrack(),
+    health: "/health",
+    hospitalsLast: "/api/v5/hospitals/last",
+    hospitalWithPeers: "/api/v5/hospitals/:id"
+  }));
+
   app.get("/metrics", async (_request, reply) => {
     reply.header("Content-Type", metricsContentType);
     return renderMetrics();
