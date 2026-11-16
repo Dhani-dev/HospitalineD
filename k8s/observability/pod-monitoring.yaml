@@ -1,0 +1,13 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: hospitaline-api
+  namespace: hospitaline-prod
+spec:
+  selector:
+    matchLabels:
+      app: hospitaline-api
+  endpoints:
+    - port: 3000
+      path: /metrics
+      interval: 30s
