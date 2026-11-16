@@ -59,7 +59,18 @@ const dashboardCacheMisses = new client.Counter({
   registers: [registry]
 });
 
+const chaosInjectedFaultsTotal = new client.Counter({
+  name: "hospitaline_chaos_injected_faults_total",
+  help: "Outbound peer calls answered by the chaos switch instead of the real peer",
+  labelNames: ["fault", "peer", "status"] as const,
+  registers: [registry]
+});
+
 const SERVICE_NAME = "hospitaline-api";
+
+export function recordInjectedFault(peer: string, status: number): void {
+  chaosInjectedFaultsTotal.inc({ fault: "dependency-5xx", peer, status: String(status) });
+}
 
 export function recordHttpRequest(
   method: string,

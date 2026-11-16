@@ -1,0 +1,126 @@
+version: 1.0.0
+title: Hospitaline v5 con biblio-express (Azure) respondiendo 503 sostenido
+description: >
+  Dado el perfil común de k6, cuando la dependencia biblio-express responda 503
+  en el 100 % de las llamadas salientes de api/v5 durante 3 minutos, el flujo
+  GET /api/v5/hospitals/:id mantendrá la tasa de éxito (200 con local y los dos
+  peers con datos) >= 99 %.
+tags: [hospitaline, gcp, gke, dependency-unavailability, daniela]
+
+configuration:
+  api_url:
+    type: env
+    key: HOSPITALINE_URL
+    default: http://34.121.168.216
+  hospital_id:
+    type: env
+    key: HOSPITAL_ID
+    default: ff514126-e11a-4b8a-91c8-360d3b4b67bd
+  k6_script:
+    type: env
+    key: K6_SCRIPT
+
+secrets:
+  hospitaline:
+    chaos_token:
+      type: env
+      key: CHAOS_TOKEN
+
+extensions:
+  - name: hospitaline
+    owner: Daniela
+    fault: indisponibilidad de dependencia (5xx sostenidos)
+    injection:
+      dependency: biblio-express (Azure, Phol)
+      call: GET USERS_API_URL + /api/v5/users
+      status: 503
+      rate: 1.0
+      duration_seconds: 180
+      mechanism: PUT /chaos/dependency-5xx (Redis con TTL, las dos réplicas)
+    metric:
+      name: tasa de éxito del flujo
+      definition: 200 con local y peers.biblio-express.data distinto de null
+      threshold: ">= 99 %"
+      instrument: k6 (perfil común del repositorio de Phol)
+      window: los 180 s de inyección
+    steady_state: pendiente de medir con el perfil común antes de la ronda 0
+    blast_radius: >
+      Solo las llamadas salientes de api/v5 hacia biblio-express. v1-v4, la base
+      de datos y la llamada a pokenetes no pasan por el interruptor.
+    abort_conditions:
+      - /health deja de responder 200 (safeguard cada 5 s)
+      - la duración llega a 900 s (límite del endpoint)
+    rollback: >
+      DELETE /chaos/dependency-5xx. Si el runner muere, la clave de Redis vence
+      sola a los 180 s.
+
+controls:
+  - name: safeguards
+    provider:
+      type: python
+      module: chaosaddons.controls.safeguards
+      arguments:
+        probes:
+          - name: abort-if-api-down
+            type: probe
+            frequency: 5
+            tolerance: 200
+            provider:
+              type: http
+              url: ${api_url}/health
+              timeout: 3
+
+steady-state-hypothesis:
+  title: El flujo v5 responde y no hay fallo activo
+  probes:
+    - name: api-health
+      type: probe
+      tolerance: 200
+      provider:
+        type: http
+        url: ${api_url}/health
+        timeout: 5
+    - name: v5-flow
+      type: probe
+      tolerance: 200
+      provider:
+        type: http
+        url: ${api_url}/api/v5/hospitals/${hospital_id}
+        timeout: 10
+
+method:
+  - name: load-with-common-profile
+    type: probe
+    background: true
+    tolerance: 0
+    provider:
+      type: process
+      path: k6
+      arguments: ["run", "-e", "BASE_URL=${api_url}", "-e", "HOSPITAL_ID=${hospital_id}", "${k6_script}"]
+    pauses:
+      after: 60
+  - name: biblio-express-503
+    type: action
+    provider:
+      type: http
+      url: ${api_url}/chaos/dependency-5xx
+      method: PUT
+      headers:
+        Content-Type: application/json
+        x-chaos-token: ${chaos_token}
+      arguments:
+        target: biblio-express
+        rate: 1
+        durationSeconds: 180
+    pauses:
+      after: 180
+
+rollbacks:
+  - name: revert-biblio-express-503
+    type: action
+    provider:
+      type: http
+      url: ${api_url}/chaos/dependency-5xx
+      method: DELETE
+      headers:
+        x-chaos-token: ${chaos_token}

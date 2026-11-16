@@ -6,6 +6,13 @@ metadata:
 spec:
   replicas: 2
 
+  # Durante un rollout nunca baja de 2 réplicas listas.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
   selector:
     matchLabels:
       app: hospitaline-api
@@ -26,7 +33,7 @@ spec:
 
         # Hospitaline API
         - name: hospitaline-api
-          image: us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-repo/hospitaline-api:v2.1.1
+          image: us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-repo/hospitaline-api:v5.0.2
           
           ports:
             - containerPort: 3000
@@ -73,6 +80,13 @@ spec:
                 secretKeyRef:
                   name: hospitaline-otel
                   key: OTEL_EXPORTER_OTLP_HEADERS
+                  optional: true
+
+            - name: CHAOS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hospitaline-chaos
+                  key: CHAOS_TOKEN
                   optional: true
 
             - name: POD_NAME

@@ -8,6 +8,8 @@ metadata:
     prometheus.io/port: "80"
     prometheus.io/path: "/metrics"
 spec:
+  # IP reservada en terraform/gke (hospitaline-gke-api-ip): la URL de los compañeros no cambia.
+  loadBalancerIP: "34.121.168.216"
   selector:
     app: hospitaline-api
   ports:

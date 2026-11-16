@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { ApiVersion, versionFields } from "../http/apiVersion";
+import { ApiVersion, hasBedCapacity, hidesPeersOnRead, versionFields } from "../http/apiVersion";
 import { presentHospital } from "../http/hospitalContract";
 import { recordHospitalRegistered } from "../observability/metrics";
 import { traceIdentifiers } from "../observability/trace-context";
@@ -56,11 +56,11 @@ export class HospitalController {
   private present = (hospital: Hospital) => presentHospital(hospital, this.version);
 
   private createSchema() {
-    return this.version === "v4" ? hospitalV4CreateSchema : hospitalCreateSchema;
+    return hasBedCapacity(this.version) ? hospitalV4CreateSchema : hospitalCreateSchema;
   }
 
   private patchSchema() {
-    return this.version === "v4" ? hospitalV4PatchSchema : hospitalPatchSchema;
+    return hasBedCapacity(this.version) ? hospitalV4PatchSchema : hospitalPatchSchema;
   }
 
   list = async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -107,7 +107,7 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
-      if (this.version === "v4") {
+      if (hidesPeersOnRead(this.version)) {
         const local = await this.hospitalService.getById(request.params.id);
         if (!local) {
           return reply.status(404).send({ message: "Hospital not found" });
@@ -157,7 +157,7 @@ export class HospitalController {
     reply: FastifyReply
   ) => {
     try {
-      const payload = this.version === "v4"
+      const payload = hasBedCapacity(this.version)
         ? { bed_capacity: null, ...hospitalV4CreateSchema.parse(request.body) }
         : hospitalCreateSchema.parse(request.body);
       const updated = await this.hospitalService.replace(request.params.id, payload);
