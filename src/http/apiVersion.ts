@@ -21,5 +21,5 @@ export function hidesPeersOnRead(version: ApiVersion): boolean {
 }
 
 export function hasBedCapacity(version: ApiVersion): boolean {
-  return version === "v4" || version === "v5";
+  return version === "v4";
 }

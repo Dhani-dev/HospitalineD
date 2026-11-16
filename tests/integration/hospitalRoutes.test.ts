@@ -248,7 +248,7 @@ describe("Hospital routes", () => {
     expect(body.peers).toBeUndefined();
   });
 
-  it("GET /api/v5/hospitals/:id keeps bed_capacity and shows the last of each peer", async () => {
+  it("GET /api/v5/hospitals/:id hides bed_capacity and shows the last of each peer", async () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v5/hospitals/11111111-1111-1111-1111-111111111111"
@@ -257,7 +257,8 @@ describe("Hospital routes", () => {
 
     expect(res.statusCode).toBe(200);
     expect(body.version).toBe(APP_VERSION);
-    expect(body.local.capacity_band).toBe("medium");
+    expect(body.local).not.toHaveProperty("bed_capacity");
+    expect(body.local).not.toHaveProperty("capacity_band");
     expect(body.peers["biblio-express"].entity).toBe("users");
     expect(body.peers.pokenetes.entity).toBe("entrenador");
   });
@@ -267,8 +268,28 @@ describe("Hospital routes", () => {
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body.local).toHaveProperty("capacity_band");
+    expect(body.local).not.toHaveProperty("bed_capacity");
     expect(body.peers).toBeUndefined();
+  });
+
+  it("POST /api/v5/hospitals ignores bed_capacity", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v5/hospitals",
+      payload: { name: "V5", address: "F", city: "Cali", phone: "5550003", bed_capacity: 12 }
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(JSON.parse(res.payload)).not.toHaveProperty("bed_capacity");
+  });
+
+  it("GET / lists the v5 entry points", async () => {
+    const res = await app.inject({ method: "GET", url: "/" });
+    const body = JSON.parse(res.payload);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.api).toBe("hospitaline");
+    expect(body.hospitalsLast).toBe("/api/v5/hospitals/last");
   });
 
   it("POST /api/v4/hospitals stores bed_capacity", async () => {
@@ -310,7 +331,7 @@ describe("Hospital routes", () => {
     const body = JSON.parse(res.payload);
 
     expect(res.statusCode).toBe(200);
-    expect(body[0]).toHaveProperty("capacity_band");
+    expect(body[0]).not.toHaveProperty("bed_capacity");
   });
 
   it("sends X-App-Version on every response, including 404", async () => {
