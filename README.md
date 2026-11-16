@@ -73,12 +73,12 @@ DB_PORT=5432
 DB_NAME=hospitaline
 DB_USER=postgres
 DB_PASSWORD=...
-USERS_API_URL=http://48.217.130.84
-USERS_LAST_PATH=/api/v2/users/last
-USERS_LIST_PATH=/api/users
-ENTRENADOR_API_URL=http://a9882c6970a5d426d9e2f19b89c56119-333357364.us-east-1.elb.amazonaws.com
-ENTRENADOR_LAST_PATH=/api/v2/entrenador/last
-ENTRENADOR_LIST_PATH=/entrenador
+USERS_API_URL=https://biblio-express-final-api-cruuw4ggmq-uc.a.run.app
+USERS_LAST_PATH=/api/v5/users
+USERS_LIST_PATH=/api/v5/users
+ENTRENADOR_API_URL=http://pokenetes-alb-1190353326.us-east-1.elb.amazonaws.com
+ENTRENADOR_LAST_PATH=/api/v5/entrenador/last
+ENTRENADOR_LIST_PATH=/api/v5/entrenador
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 CACHE_TTL_SECONDS=60
@@ -90,7 +90,7 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS=
 ```
 
-`USERS_API_URL` y `ENTRENADOR_API_URL` pueden quedar vacías hasta que existan las URLs de Azure y AWS. Si un peer no está configurado o falla, `local` sigue saliendo y el peer se marca con `live: false`. Nunca se inventan datos.
+Si `USERS_API_URL` o `ENTRENADOR_API_URL` quedan vacías, o el compañero falla, `local` sigue saliendo y ese peer se marca con `live: false`. Nunca se inventan datos.
 
 ## API v2 y reuso entre nubes
 
@@ -166,8 +166,8 @@ Se ponen en [`k8s/configmap.yaml`](k8s/configmap.yaml) y se aplican con `kubectl
 
 | Integrante | Variable | Valor |
 |---|---|---|
-| Phol (biblio-express, Azure) | `USERS_API_URL` + `USERS_LAST_PATH` | pendiente |
-| Neithan (Pokenetes, AWS) | `ENTRENADOR_API_URL` + `ENTRENADOR_LAST_PATH` | pendiente |
+| Phol (biblio-express) | `USERS_API_URL` + `USERS_LAST_PATH` | `https://biblio-express-final-api-cruuw4ggmq-uc.a.run.app/api/v5/users` |
+| Neithan (Pokenetes, AWS) | `ENTRENADOR_API_URL` + `ENTRENADOR_LAST_PATH` | `http://pokenetes-alb-1190353326.us-east-1.elb.amazonaws.com/api/v5/entrenador/last` |
 
 ### Kubernetes (GKE Autopilot `hospitaline-gke`)
 

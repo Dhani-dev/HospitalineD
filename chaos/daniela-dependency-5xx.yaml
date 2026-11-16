@@ -32,7 +32,7 @@ extensions:
     fault: indisponibilidad de dependencia (5xx sostenidos)
     injection:
       dependency: biblio-express (Azure, Phol)
-      call: GET USERS_API_URL + /api/v2/users/last y su fallback /api/users
+      call: GET USERS_API_URL + /api/v5/users
       status: 503
       rate: 1.0
       duration_seconds: 180
