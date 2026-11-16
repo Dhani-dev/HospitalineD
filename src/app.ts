@@ -10,13 +10,23 @@ import { isOrchestratorConfigured } from "./integrations/orchestratorPlaceholder
 import { ApiVersion } from "./http/apiVersion";
 import { registerFaultInjection } from "./http/faultInjection";
 import { registerChaosRoutes } from "./chaos/chaosRoutes";
+import { degradedPeer, enterChaosHeaders } from "./chaos/requestContext";
 import { appTrack, appVersionHeader, APP_VERSION, CURRENT_API } from "./http/release";
 
 export function buildApp(services: ServiceContainer) {
   const app = Fastify({ logger: true });
 
-  app.addHook("onRequest", async (_request, reply) => {
+  app.addHook("onRequest", (request, reply, done) => {
     reply.header("X-App-Version", appVersionHeader());
+    enterChaosHeaders(request.headers);
+    done();
+  });
+
+  app.addHook("onSend", async (_request, reply) => {
+    const peer = degradedPeer();
+    if (peer) {
+      reply.header("X-Degraded", peer);
+    }
   });
 
   app.register(queryMethodPlugin);

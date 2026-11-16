@@ -1,4 +1,11 @@
 import { trace } from "@opentelemetry/api";
+import { peerBreaker } from "../chaos/circuitBreaker";
+import { DependencyCascadeError } from "../chaos/dependencyCascade";
+import {
+  dependencyFaultRequested,
+  markDegraded,
+  resilienceEnabled
+} from "../chaos/requestContext";
 import { tracedHeaders } from "../observability";
 import { PeerResponse } from "../types/entities";
 
@@ -23,7 +30,8 @@ export class ExternalApiError extends Error {
   constructor(
     public readonly service: string,
     public readonly status: number,
-    message: string
+    message: string,
+    public readonly injected = false
   ) {
     super(`${service} API request failed (${status}): ${message}`);
     this.name = "ExternalApiError";
@@ -167,6 +175,12 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
     );
   }
 
+  private containInjectedFault(service: string, entity: PeerResponse["entity"]): PeerResponse {
+    markDegraded(service);
+    peerBreaker.recordFailure(service);
+    return offlinePeer(entity);
+  }
+
   private async fetchLastPeer(
     service: string,
     entity: PeerResponse["entity"],
@@ -174,6 +188,12 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
     listUrl: string,
     traceId: string
   ): Promise<PeerResponse> {
+    const faulted = service === "biblio-express" && dependencyFaultRequested();
+    if (faulted && resilienceEnabled() && peerBreaker.isOpen(service)) {
+      markDegraded(service);
+      return offlinePeer(entity);
+    }
+
     try {
       const lastResponse = await this.request(lastUrl, traceId);
       if (lastResponse.ok) {
@@ -185,9 +205,19 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
       }
 
       if (lastResponse.status !== 404) {
+        const injected = lastResponse.headers.get("x-chaos-injected") === "true";
+        if (injected && resilienceEnabled()) {
+          return this.containInjectedFault(service, entity);
+        }
+        if (injected) {
+          throw new DependencyCascadeError(service);
+        }
         throw new ExternalApiError(service, lastResponse.status, await lastResponse.text());
       }
     } catch (error) {
+      if (error instanceof DependencyCascadeError) {
+        throw error;
+      }
       if (error instanceof ExternalApiError) {
         return offlinePeer(entity);
       }

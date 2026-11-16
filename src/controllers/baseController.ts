@@ -1,6 +1,7 @@
 import { FastifyReply } from "fastify";
 import { ZodError } from "zod";
 import { HttpError } from "../errors/httpError";
+import { DependencyCascadeError } from "../chaos/dependencyCascade";
 import { ExternalApiError } from "../integrations/externalEntitiesClient";
 
 export function handleControllerError(error: unknown, reply: FastifyReply): FastifyReply {
@@ -13,6 +14,13 @@ export function handleControllerError(error: unknown, reply: FastifyReply): Fast
 
   if (error instanceof HttpError) {
     return reply.status(error.statusCode).send({ message: error.message });
+  }
+
+  if (error instanceof DependencyCascadeError) {
+    return reply.status(503).send({
+      message: error.message,
+      dependency: error.service
+    });
   }
 
   if (error instanceof ExternalApiError) {

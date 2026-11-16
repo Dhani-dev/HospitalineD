@@ -2,6 +2,7 @@ import { trace } from "@opentelemetry/api";
 import type { FetchLike } from "../integrations/externalEntitiesClient";
 import { recordInjectedFault } from "../observability/metrics";
 import { DependencyFaultSwitch, PeerName } from "./dependencyFault";
+import { dependencyFaultRequested } from "./requestContext";
 
 export type PeerBaseUrls = Record<PeerName, string>;
 
@@ -23,24 +24,31 @@ export function chaosFetch(
 ): FetchLike {
   return async (input, init) => {
     const fault = await faults.current();
-    const peer = fault && peerForUrl(String(input), peers);
-    const targeted = peer && (fault.target === "all" || fault.target === peer);
+    const peer = peerForUrl(String(input), peers);
+    const bySwitch = Boolean(
+      fault && peer && (fault.target === "all" || fault.target === peer) && random() < fault.rate
+    );
+    const byHeader = Boolean(peer === "biblio-express" && dependencyFaultRequested());
 
-    if (!fault || !targeted || random() >= fault.rate) {
+    if (!peer || (!bySwitch && !byHeader)) {
       return base(input, init);
     }
 
-    recordInjectedFault(peer, fault.status);
+    const status = fault?.status ?? 503;
+    recordInjectedFault(peer, status);
     trace.getActiveSpan()?.setAttributes({
       "chaos.injected": true,
-      "chaos.fault": fault.fault,
+      "chaos.fault": fault?.fault ?? "dependency-5xx",
       "chaos.target": peer,
-      "http.response.status_code": fault.status
+      "http.response.status_code": status
     });
 
     return new Response(
-      JSON.stringify({ message: "Injected dependency fault", fault: fault.fault, peer }),
-      { status: fault.status, headers: { "content-type": "application/json" } }
+      JSON.stringify({ message: "Injected dependency fault", fault: "dependency-5xx", peer }),
+      {
+        status,
+        headers: { "content-type": "application/json", "x-chaos-injected": "true" }
+      }
     );
   };
 }
