@@ -33,7 +33,7 @@ spec:
 
         # Hospitaline API
         - name: hospitaline-api
-          image: us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-repo/hospitaline-api:v5.0.1
+          image: us-central1-docker.pkg.dev/project-39d0c894-3885-4211-89d/hospitaline-repo/hospitaline-api:v5.0.2
           
           ports:
             - containerPort: 3000

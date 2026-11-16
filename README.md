@@ -158,7 +158,7 @@ El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` 
 | Lo que llaman los compañeros (sin bucles) | `GET /api/v5/hospitals/last` → solo local |
 | Salud (liveness/readiness) | `GET /health` |
 
-`/api/v5` usa el modelo de v4 (`bed_capacity`, `capacity_band`) y el JSON de v2 con `peers`. Acepta `x-trace-id` y `traceparent`, los devuelve y los propaga a los peers.
+`/api/v5` repite el JSON de v2 (local y `peers`, sin `bed_capacity`: eso queda solo en v4). `GET /` lista estos endpoints. Acepta `x-trace-id` y `traceparent`, los devuelve y los propaga a los peers.
 
 ### URLs de los compañeros
 
@@ -179,7 +179,7 @@ Se ponen en [`k8s/configmap.yaml`](k8s/configmap.yaml) y se aplican con `kubectl
 
 Evidencia: `kubectl get deploy,pods,hpa,pdb -n hospitaline-prod` y `kubectl describe deployment hospitaline-api -n hospitaline-prod`.
 
-Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.1`.
+Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.2`.
 
 Se conserva de la entrega #2: GKE, Cloud SQL `hospitaline-db` con su proxy, Redis en el clúster, Secret Manager y Grafana Cloud. Cloud Run y el canary de la entrega #3 no participan en este flujo.
 

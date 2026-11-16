@@ -2,7 +2,7 @@ import type { ApiVersion } from "./apiVersion";
 
 export type Track = "stable" | "canary";
 
-export const APP_VERSION = "5.0.1";
+export const APP_VERSION = "5.0.2";
 
 export const CURRENT_API: ApiVersion = "v5";
 
