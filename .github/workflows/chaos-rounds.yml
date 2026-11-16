@@ -1,0 +1,52 @@
+name: Chaos rounds
+
+# Perfil común de Phol, fijo entre rondas. Ronda 0 debe fallar el umbral.
+# Ronda 1, con x-peer-resilience, debe pasarlo.
+on:
+  workflow_dispatch:
+    inputs:
+      round:
+        description: Ronda
+        type: choice
+        options:
+          - ronda-0
+          - ronda-1
+        default: ronda-0
+
+jobs:
+  round:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: http://34.121.168.216
+      FLOW_PATH: /api/v5/hospitals/ff514126-e11a-4b8a-91c8-360d3b4b67bd
+      EXPERIMENT: indisponibilidad-dependencia
+      ROUND: ${{ inputs.round }}
+      SUMMARY_PATH: k6-summary.json
+      FAULT_HEADERS: '{"x-fault-mode":"dependency-down"}'
+      OBJECTIVE_METRIC: http_req_failed{phase:fault}
+      OBJECTIVE_EXPR: rate<=0.01
+    steps:
+      - name: Descargar el perfil k6 común (repo de Phol)
+        uses: actions/checkout@v4
+        with:
+          repository: PholCast/biblio-express
+          ref: 7b2aef79f872ff9e715c62aa59e49d085b6cd841
+          path: perfil-k6
+          token: ${{ secrets.PHOL_REPO_TOKEN }}
+
+      - name: Instalar k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Ronda con perfil-comun-v1
+        run: |
+          if [ "$ROUND" = "ronda-1" ]; then
+            export EXTRA_HEADERS='{"x-peer-resilience":"true"}'
+          fi
+          k6 run perfil-k6/load/k6/flow.js
+
+      - name: Guardar el resumen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary-${{ inputs.round }}
+          path: k6-summary.json

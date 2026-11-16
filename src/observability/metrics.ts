@@ -59,6 +59,13 @@ const dashboardCacheMisses = new client.Counter({
   registers: [registry]
 });
 
+const flowRequestsTotal = new client.Counter({
+  name: "hospitaline_flow_requests_total",
+  help: "Tasa de error del flujo v5: result=error son status >= 400 en GET /api/v5/:entidad/:id. fault=on es la ventana con x-fault-mode.",
+  labelNames: ["result", "fault"] as const,
+  registers: [registry]
+});
+
 const chaosInjectedFaultsTotal = new client.Counter({
   name: "hospitaline_chaos_injected_faults_total",
   help: "Outbound peer calls answered by the chaos switch instead of the real peer",
@@ -67,6 +74,13 @@ const chaosInjectedFaultsTotal = new client.Counter({
 });
 
 const SERVICE_NAME = "hospitaline-api";
+
+export function recordFlowRequest(status: number, fault: boolean): void {
+  flowRequestsTotal.inc({
+    result: status >= 400 ? "error" : "ok",
+    fault: fault ? "on" : "off"
+  });
+}
 
 export function recordInjectedFault(peer: string, status: number): void {
   chaosInjectedFaultsTotal.inc({ fault: "dependency-5xx", peer, status: String(status) });

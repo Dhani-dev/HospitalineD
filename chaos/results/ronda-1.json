@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-11-16T04:53:12.144Z",
+  "round": "ronda-1",
+  "experiment": "indisponibilidad-dependencia",
+  "profile": "perfil-comun-v1",
+  "target": {
+    "baseUrl": "http://34.121.168.216",
+    "paths": [
+      "/api/v5/hospitals/ff514126-e11a-4b8a-91c8-360d3b4b67bd"
+    ]
+  },
+  "faultWindow": {
+    "startSeconds": 150,
+    "durationSeconds": 120
+  },
+  "testDurationMs": 330131.814,
+  "phases": {
+    "baseline": {
+      "requests": 2826,
+      "errorRate": 0,
+      "successRate": 1,
+      "latencyMs": {
+        "avg": 127.37315074309961,
+        "p95": 161.2425,
+        "p99": 439.405,
+        "max": 1507.193
+      }
+    },
+    "fault": {
+      "requests": 3625,
+      "errorRate": 0,
+      "successRate": 1,
+      "latencyMs": {
+        "avg": 160.87230399999956,
+        "p95": 189.8613999999999,
+        "p99": 525.15224,
+        "max": 1502.162
+      }
+    },
+    "recovery": {
+      "requests": 1463,
+      "errorRate": 0,
+      "successRate": 1,
+      "latencyMs": {
+        "avg": 123.87420847573519,
+        "p95": 130.0039,
+        "p99": 444.82824,
+        "max": 916.421
+      }
+    }
+  },
+  "thresholds": {
+    "http_req_failed{phase:recovery}: rate>=0": true,
+    "http_req_duration{phase:baseline}: p(95)>=0": true,
+    "http_req_duration{phase:recovery}: p(95)>=0": true,
+    "http_req_failed{phase:fault}: rate<=0.01": true,
+    "http_req_failed{phase:baseline}: rate>=0": true,
+    "http_reqs{phase:recovery}: count>=0": true,
+    "http_reqs{phase:fault}: count>=0": true,
+    "http_reqs{phase:baseline}: count>=0": true,
+    "http_req_duration{phase:fault}: p(95)>=0": true
+  }
+}

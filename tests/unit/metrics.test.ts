@@ -54,4 +54,21 @@ describe("metrics service", () => {
     expect(res.payload).toContain("hospitaline_cache_hits_total");
     expect(res.payload).toContain('cache_hits_total{service_name="hospitaline-api"}');
   });
+
+  it("counts the v5 flow error rate, split by the fault window", async () => {
+    const id = "11111111-1111-1111-1111-111111111111";
+    await app.inject({ method: "GET", url: `/api/v5/hospitals/${id}` });
+    await app.inject({
+      method: "GET",
+      url: `/api/v5/hospitals/${id}`,
+      headers: { "x-fault-mode": "dependency-down" }
+    });
+    await app.inject({ method: "GET", url: "/api/v5/hospitals/last" });
+
+    const res = await app.inject({ method: "GET", url: "/metrics" });
+
+    expect(res.payload).toContain('hospitaline_flow_requests_total{result="error",fault="off"}');
+    expect(res.payload).toContain('hospitaline_flow_requests_total{result="error",fault="on"}');
+    expect(res.payload).not.toMatch(/hospitaline_flow_requests_total\{[^}]*route="\/api\/v5\/hospitals\/last"/);
+  });
 });

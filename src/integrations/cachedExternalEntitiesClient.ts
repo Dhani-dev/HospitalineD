@@ -1,5 +1,7 @@
 import { cacheKeys } from "../cache/keys";
 import { CacheClient } from "../cache/cacheClient";
+import { faultFromEnv } from "../chaos/dependencyFault";
+import { dependencyFaultRequested } from "../chaos/requestContext";
 import { PeerResponse } from "../types/entities";
 import { ExternalEntitiesClient } from "./externalEntitiesClient";
 
@@ -41,6 +43,11 @@ export class CachedExternalEntitiesClient implements ExternalEntitiesClient {
     key: string,
     loader: () => Promise<PeerResponse>
   ): Promise<PeerResponse> {
+    // Durante el fallo la caché ocultaría el 503 y la ronda mediría el sistema sano.
+    if (dependencyFaultRequested() || faultFromEnv()) {
+      return loader();
+    }
+
     const cached = await this.cache.get<PeerResponse>(key);
     if (cached.hit) {
       return cached.value;

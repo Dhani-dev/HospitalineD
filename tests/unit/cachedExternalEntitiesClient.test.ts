@@ -1,8 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
-import { CachedExternalEntitiesClient } from "../../src/integrations/cachedExternalEntitiesClient";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryCacheClient } from "../../src/cache/memoryCacheClient";
+import { enterChaosHeaders } from "../../src/chaos/requestContext";
+import { CachedExternalEntitiesClient } from "../../src/integrations/cachedExternalEntitiesClient";
 
 describe("CachedExternalEntitiesClient", () => {
+  afterEach(() => {
+    enterChaosHeaders({});
+  });
+
   it("caches live peer responses and skips a second HTTP call", async () => {
     const inner = {
       getLastUser: vi.fn().mockResolvedValue({
@@ -55,6 +60,21 @@ describe("CachedExternalEntitiesClient", () => {
 
     expect(first.live).toBe(false);
     expect(second).toEqual({ live: true, entity: "users", data: { id: "u2" } });
+    expect(inner.getLastUser).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips the cache while the k6 fault header is set", async () => {
+    enterChaosHeaders({ "x-fault-mode": "dependency-down" });
+    const inner = {
+      getLastUser: vi.fn().mockResolvedValue({ live: true, entity: "users", data: { id: "u1" } }),
+      getLastEntrenador: vi.fn(),
+      getPeers: vi.fn()
+    };
+    const client = new CachedExternalEntitiesClient(inner, new MemoryCacheClient(), 60);
+
+    await client.getLastUser("t1");
+    await client.getLastUser("t2");
+
     expect(inner.getLastUser).toHaveBeenCalledTimes(2);
   });
 });
