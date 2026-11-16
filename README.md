@@ -179,7 +179,7 @@ Se ponen en [`k8s/configmap.yaml`](k8s/configmap.yaml) y se aplican con `kubectl
 
 Evidencia: `kubectl get deploy,pods,hpa,pdb -n hospitaline-prod` y `kubectl describe deployment hospitaline-api -n hospitaline-prod`.
 
-Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.3`.
+Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.4`.
 
 Se conserva de la entrega #2: GKE, Cloud SQL `hospitaline-db` con su proxy, Redis en el clúster, Secret Manager y Grafana Cloud. Cloud Run y el canary de la entrega #3 no participan en este flujo.
 
