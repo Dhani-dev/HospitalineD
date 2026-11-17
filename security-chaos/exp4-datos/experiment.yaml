@@ -1,0 +1,47 @@
+id: exp4-datos
+title: Resiliencia de los comprobantes del flujo
+owner: Daniela
+layer: Datos
+control_under_test: bucket de comprobantes del flujo tal como está configurado hoy
+adverse_condition: la identidad de la carga sobrescribe la primera mitad de los comprobantes y borra la segunda
+hypothesis: >-
+  Dado el control bucket de comprobantes del flujo tal como está configurado hoy,
+  cuando la identidad de la carga sobrescriba y borre los objetos,
+  esperamos la señal alerta de destrucción masiva en Cloud Monitoring en ≤ 10 min,
+  y la contención (objetos restaurados y verificados) con RTO ≤ 30 min y RPO ≤ 60 min.
+expected_signal: alerta de destrucción masiva en Cloud Monitoring
+t1_minutes: 10
+t2_minutes: 30
+target_metric: RTO y RPO
+observation_window_minutes: 35
+repetitions:
+  ronda_0: 1
+  ronda_1: 1
+attack_techniques:
+  - id: T1485
+    name: Data Destruction
+    catalog: Enterprise ATT&CK v20.1
+    source: https://attack.mitre.org/techniques/T1485/
+    consulted_on: 2026-11-17
+    note: >-
+      El padre sigue vigente. T1485.001 Lifecycle-Triggered Deletion es otra
+      subtécnica y esta corrida no la emula. La búsqueda inversa en D3FEND no define artefactos.
+d3fend_countermeasures:
+  - id: D3-RF
+    name: Restore File
+    catalog: D3FEND ontology 1.6.0
+    source: https://d3fend.mitre.org/technique/d3f:RestoreFile/
+    consulted_on: 2026-11-17
+  - id: D3-FIM
+    name: File Integrity Monitoring
+    catalog: D3FEND ontology 1.6.0
+    source: https://d3fend.mitre.org/technique/d3f:FileIntegrityMonitoring/
+    consulted_on: 2026-11-17
+blast_radius: objetos receipts/gd4-r<ronda>-* del bucket de comprobantes del grupo. Tope MAX_OBJECTS.
+authorized_resources:
+  - project-39d0c894-3885-4211-89d
+  - gs://project-39d0c894-3885-4211-89d-gd4-flow-receipts
+  - gs://biblio-express-final-2026-gd4-copia-aislada/receipts/
+synthetic_data: comprobantes gd4-* generados por el arnés. Sin datos personales.
+stop_switch: security-chaos/STOP, GAMEDAY_STOP=1, o gs://<bucket>/_control/STOP
+rollback: restaurar los comprobantes verificados y borrar _control/STOP
