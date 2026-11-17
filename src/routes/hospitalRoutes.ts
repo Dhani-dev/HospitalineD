@@ -2,13 +2,15 @@ import { FastifyPluginAsync } from "fastify";
 import { ServiceContainer } from "../bootstrap/createServices";
 import { HospitalController } from "../controllers/hospitalController";
 import { ApiVersion, exposesPeers } from "../http/apiVersion";
+import { createReceiptWriter } from "../receipts/flowReceipts";
 
 export const hospitalRoutes = (
   services: ServiceContainer,
   version: ApiVersion
 ): FastifyPluginAsync => {
   return async (fastify) => {
-    const controller = new HospitalController(services.hospitalService, version);
+    const receipts = version === "v5" ? createReceiptWriter() : null;
+    const controller = new HospitalController(services.hospitalService, version, receipts);
 
     fastify.get("/hospitals", controller.list);
     if (exposesPeers(version)) {

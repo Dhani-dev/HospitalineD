@@ -22,3 +22,5 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp-gateway-prod-us-east-3.grafana.net/otlp"
   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
   ORCHESTRATOR_API_URL: ""
+  FLOW_RECEIPTS_ENABLED: "true"
+  FLOW_RECEIPTS_BUCKET: "project-39d0c894-3885-4211-89d-gd4-flow-receipts"
