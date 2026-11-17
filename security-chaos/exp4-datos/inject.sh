@@ -47,6 +47,7 @@ dd if=/dev/urandom of="$BLOB" bs=512 count=1 status=none
 trap 'rm -f "$BLOB"' EXIT
 
 mkdir -p "$GD_EVIDENCE"
+printf '%s\n' "$(gd_now)" >"$GD_EVIDENCE/t0.txt"
 gd_log inject_start list "count=${COUNT}"
 printf '%s\n' "$OBJECTS" >"$GD_EVIDENCE/targets.txt"
 while IFS= read -r object; do

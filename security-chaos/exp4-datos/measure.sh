@@ -51,8 +51,9 @@ case "$MODE" in
     printf 'baseline %s\n' "$EVIDENCE/baseline.json"
     ;;
   watch)
-    T0="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    printf '%s\n' "$T0" >"$EVIDENCE/t0.txt"
+    if [ ! -s "$EVIDENCE/t0.txt" ]; then
+      date -u +%Y-%m-%dT%H:%M:%SZ >"$EVIDENCE/t0.txt"
+    fi
     END=$((SECONDS + ${OBSERVATION_WINDOW_SECONDS:-2100}))
     while [ "$SECONDS" -lt "$END" ]; do
       snapshot
@@ -60,7 +61,7 @@ case "$MODE" in
         ($base[0] // []) as $b | ($now[0] // []) as $n |
         [$b[] | .name as $name | {name:$name,
           state:(if ($n|map(select(.name==$name))|length)==0 then "perdido"
-                  elif ($n|map(select(.name==$name))[0].md5Hash)==.md5Hash then "intacto"
+                  elif ((($n|map(select(.name==$name))[0]) | (.md5_hash // .md5Hash))==(.md5_hash // .md5Hash)) then "intacto"
                   else "corrupto" end)}]
       ' >"$EVIDENCE/watch-latest.json"
       sleep "${POLL_SECONDS:-15}"
@@ -73,7 +74,7 @@ case "$MODE" in
       ($base[0] // []) as $b | ($now[0] // []) as $n |
       def state($o):
         if ($n|map(select(.name==$o.name))|length)==0 then "perdido"
-        elif ($n|map(select(.name==$o.name))[0].md5Hash)==$o.md5Hash then "intacto"
+        elif ((($n|map(select(.name==$o.name))[0]) | (.md5_hash // .md5Hash))==($o.md5_hash // $o.md5Hash)) then "intacto"
         else "corrupto" end;
       {
         experiment:$experiment, round:$round, run:1, t0:$t0,
