@@ -16,3 +16,4 @@ dist/
 terraform.tfvarsterraform/.build/
 security-chaos/gameday.env
 security-chaos/STOP
+backups/
