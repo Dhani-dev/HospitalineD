@@ -1,0 +1,64 @@
+{
+  "captured_at": "2026-11-17T18:14:16Z",
+  "namespace": "hospitaline-prod",
+  "network_policies": [],
+  "network_logging_crd_present": true,
+  "network_logging_crd_detail": "customresourcedefinition.apiextensions.k8s.io/networkloggings.networking.gke.io",
+  "alert_policies": [
+    {
+      "name": "projects/project-39d0c894-3885-4211-89d/alertPolicies/14953307361287242469",
+      "displayName": "Hospitaline canary: p95 > 2 s (rollback)",
+      "enabled": true
+    },
+    {
+      "name": "projects/project-39d0c894-3885-4211-89d/alertPolicies/16666960418959414248",
+      "displayName": "Hospitaline API 5xx",
+      "enabled": true
+    },
+    {
+      "name": "projects/project-39d0c894-3885-4211-89d/alertPolicies/8026142128718767858",
+      "displayName": "Hospitaline canary: 5xx > 2% (rollback)",
+      "enabled": true
+    }
+  ],
+  "pods": [
+    {
+      "name": "hospitaline-api-7d798cb9c-9gzrv",
+      "phase": "Running",
+      "labels": {
+        "app": "hospitaline-api",
+        "pod-template-hash": "7d798cb9c",
+        "topology.kubernetes.io/region": "us-central1",
+        "topology.kubernetes.io/zone": "us-central1-a"
+      }
+    },
+    {
+      "name": "hospitaline-api-7d798cb9c-vlqtv",
+      "phase": "Running",
+      "labels": {
+        "app": "hospitaline-api",
+        "pod-template-hash": "7d798cb9c",
+        "topology.kubernetes.io/region": "us-central1",
+        "topology.kubernetes.io/zone": "us-central1-a"
+      }
+    },
+    {
+      "name": "hospitaline-redis-5f58755f6c-sckhq",
+      "phase": "Running",
+      "labels": {
+        "app": "hospitaline-redis",
+        "pod-template-hash": "5f58755f6c",
+        "topology.kubernetes.io/region": "us-central1",
+        "topology.kubernetes.io/zone": "us-central1-a"
+      }
+    }
+  ],
+  "flow": {
+    "url": "http://pokenetes-alb-1190353326.us-east-1.elb.amazonaws.com/api/v5/flujo",
+    "http_code": "200"
+  },
+  "hospitaline_health": {
+    "url": "http://34.121.168.216/health",
+    "http_code": "200"
+  }
+}
