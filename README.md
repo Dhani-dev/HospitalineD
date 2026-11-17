@@ -158,7 +158,7 @@ El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` 
 | Flujo medido en este experimento | `GET /api/v5/hospitals/:id` → local + `last` de cada compañero |
 | Salud (liveness/readiness) | `GET /health` |
 
-Diagrama del flujo de las tres API: [README de Phol, diagrama de arquitectura multicloud](https://github.com/PholCast/biblio-express/blob/main/README.md#diagrama-de-arquitectura-multicloud).
+Diagrama del flujo de las tres API: [diagrama del flujo, puntos de inyección y medición](https://github.com/PholCast/biblio-express#diagrama-del-flujo-puntos-de-inyección-y-medición).
 
 | Integrante | Fallo | Métrica | Patrones |
 |---|---|---|---|
