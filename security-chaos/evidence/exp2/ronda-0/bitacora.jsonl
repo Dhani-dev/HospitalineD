@@ -1,0 +1,5 @@
+{"ts":"2026-11-17T18:59:07Z","gameday_id":"gd-2026-11-17","experiment":"exp2","round":0,"run":1,"phase":"rollback_start","trace_id":"rollback","actor":"daniela","action":"pod","result":"delete"}
+{"ts":"2026-11-17T18:59:24Z","gameday_id":"gd-2026-11-17","experiment":"exp2","round":0,"run":1,"phase":"rollback_done","trace_id":"rollback","actor":"daniela","action":"verify","result":"pods=0 flow=200"}
+{"ts":"2026-11-17T18:59:40Z","gameday_id":"gd-2026-11-17","experiment":"exp2","round":0,"run":1,"phase":"steady_state_ok","trace_id":"gd-e2-r0-n1","actor":"daniela","action":"window_deviation","result":"ronda 0 iniciada 13:59 COT antes de las 16:00 por instruccion de Daniela; los tres avisos listo R0 ya habian llegado"}
+{"ts":"2026-11-17T19:03:59Z","gameday_id":"gd-2026-11-17","experiment":"exp2","round":0,"run":1,"phase":"rollback_start","trace_id":"rollback","actor":"daniela","action":"pod","result":"delete"}
+{"ts":"2026-11-17T19:04:03Z","gameday_id":"gd-2026-11-17","experiment":"exp2","round":0,"run":1,"phase":"rollback_done","trace_id":"rollback","actor":"daniela","action":"verify","result":"pods=0 flow=200"}
