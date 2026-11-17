@@ -1,8 +1,10 @@
 {
-  "generatedAt": "2026-11-16T04:47:27.960Z",
+  "generatedAt": "2026-11-16T22:53:47Z",
   "round": "ronda-0",
   "experiment": "indisponibilidad-dependencia",
   "profile": "perfil-comun-v1",
+  "source": "https://github.com/Dhani-dev/HospitalineD/actions/runs/43974346813",
+  "artifact": "k6-summary-ronda-0",
   "target": {
     "baseUrl": "http://34.121.168.216",
     "paths": [
@@ -13,51 +15,27 @@
     "startSeconds": 150,
     "durationSeconds": 120
   },
-  "testDurationMs": 330438.442,
   "phases": {
     "baseline": {
-      "requests": 2818,
+      "requests": 3206,
       "errorRate": 0,
       "successRate": 1,
       "latencyMs": {
-        "avg": 129.2656440738109,
-        "p95": 140.49599999999995,
-        "p99": 530.76319,
-        "max": 1080.346
+        "p95": 69.7
       }
     },
     "fault": {
-      "requests": 3835,
+      "requests": 4342,
       "errorRate": 1,
-      "successRate": 0,
-      "latencyMs": {
-        "avg": 123.97759191655805,
-        "p95": 145.64409999999987,
-        "p99": 296.83495999999957,
-        "max": 1271.115
-      }
+      "successRate": 0
     },
     "recovery": {
-      "requests": 1457,
+      "requests": 1642,
       "errorRate": 0,
-      "successRate": 1,
-      "latencyMs": {
-        "avg": 126.86463692518889,
-        "p95": 166.67619999999994,
-        "p99": 374.72551999999996,
-        "max": 519.206
-      }
+      "successRate": 1
     }
   },
   "thresholds": {
-    "http_req_duration{phase:baseline}: p(95)>=0": true,
-    "http_req_failed{phase:fault}: rate<=0.01": false,
-    "http_reqs{phase:fault}: count>=0": true,
-    "http_reqs{phase:recovery}: count>=0": true,
-    "http_req_failed{phase:recovery}: rate>=0": true,
-    "http_req_duration{phase:recovery}: p(95)>=0": true,
-    "http_req_duration{phase:fault}: p(95)>=0": true,
-    "http_req_failed{phase:baseline}: rate>=0": true,
-    "http_reqs{phase:baseline}: count>=0": true
+    "http_req_failed{phase:fault}: rate<=0.01": false
   }
 }

@@ -1,5 +1,5 @@
 version: 1.0.0
-title: Hospitaline v5 con biblio-express (Azure) respondiendo 503 sostenido
+title: Hospitaline v5 con biblio-express (Cloud Run, GCP) respondiendo 503 sostenido
 description: >
   Dado el perfil común de k6, cuando la dependencia biblio-express responda 503
   en el 100 % de las llamadas salientes de api/v5 durante 120 segundos, el flujo
@@ -30,7 +30,7 @@ extensions:
     owner: Daniela
     fault: indisponibilidad de dependencia (5xx sostenidos)
     injection:
-      dependency: biblio-express (Azure, Phol)
+      dependency: biblio-express (Cloud Run en GCP, Phol)
       call: GET USERS_API_URL + /api/v5/users
       status: 503
       rate: 1.0
@@ -45,8 +45,8 @@ extensions:
       instrument: k6 (perfil común de Phol, perfil-comun-v1)
       window: segundos 150 a 270 del perfil (120 s)
     steady_state: >
-      Baseline del perfil común, 15 nov 2026: error 0% y p95 140 ms (ronda 0)
-      y 161 ms (ronda 1).
+      Baseline del gate, 16 nov 2026: error 0% y p95 69,7 ms (ronda 0, 22:53 UTC)
+      y 51,8 ms (ronda 1, 23:00 UTC).
     blast_radius: >
       Solo las llamadas salientes de api/v5 hacia biblio-express. v1-v4, la base
       de datos y la llamada a pokenetes no pasan por el interruptor.
@@ -55,7 +55,8 @@ extensions:
       - la duración llega a 900 s (límite del endpoint)
     rollback: >
       DELETE /chaos/dependency-5xx. Si el runner muere, la clave de Redis vence
-      sola a los 180 s.
+      sola a los 180 s. Antes del gate se comprobó que, sin la cabecera
+      x-fault-mode, el mismo GET vuelve a 200.
 
 controls:
   - name: safeguards
@@ -99,9 +100,17 @@ method:
     provider:
       type: process
       path: k6
-      arguments: ["run", "-e", "BASE_URL=${api_url}", "-e", "HOSPITAL_ID=${hospital_id}", "${k6_script}"]
+      arguments:
+        [
+          "run",
+          "-e",
+          "BASE_URL=${api_url}",
+          "-e",
+          "FLOW_PATH=/api/v5/hospitals/${hospital_id}",
+          "${k6_script}"
+        ]
     pauses:
-      after: 60
+      after: 150
   - name: biblio-express-503
     type: action
     provider:
@@ -114,9 +123,9 @@ method:
       arguments:
         target: biblio-express
         rate: 1
-        durationSeconds: 180
+        durationSeconds: 120
     pauses:
-      after: 180
+      after: 120
 
 rollbacks:
   - name: revert-biblio-express-503

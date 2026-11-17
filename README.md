@@ -8,7 +8,7 @@ API REST para la gestión de **hospitales, doctores y pacientes**, construida co
 
 ## Arquitectura multicloud
 
-Hospitaline es la nube GCP. Consume por HTTP el último `users` de Biblio (Azure) y el último `entrenador` de Pokenetes (AWS). La caché Redis es de esta nube. La cola y Object Storage no. Neithan opera AWS, Daniela opera GCP y Phol opera Azure.
+Hospitaline es la nube GCP. Consume por HTTP el último `users` de biblio-express (Cloud Run en GCP) y el último `entrenador` de Pokenetes (AWS). La caché Redis es de esta nube. La cola y Object Storage no. Neithan opera AWS, Daniela opera GKE y Phol opera biblio-express.
 
 ![Arquitectura multicloud AWS, GCP y Azure](docs/arquitectura-multicloud.jpg)
 
@@ -94,7 +94,7 @@ Si `USERS_API_URL` o `ENTRENADOR_API_URL` quedan vacías, o el compañero falla,
 
 ## API v2 y reuso entre nubes
 
-Hospitaline no duplica la lógica de los compañeros: consume por HTTP el último `users` de [biblio-express](https://github.com/PholCast/biblio-express) (Azure) y el último `entrenador` de [Pokenetes-API](https://github.com/Enedev/Pokenetes-API) (AWS).
+Hospitaline no duplica la lógica de los compañeros: consume por HTTP el último `users` de [biblio-express](https://github.com/PholCast/biblio-express) (Cloud Run en GCP) y el último `entrenador` de [Pokenetes-API](https://github.com/Enedev/Pokenetes-API) (AWS).
 
 ### GET /api/v2/{entidad}/last
 
@@ -154,9 +154,17 @@ El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` 
 
 | Uso | Endpoint |
 |---|---|
-| Lo que llama el coordinador (Neithan) | `GET /api/v5/hospitals/:id` → local + `last` de cada compañero |
-| Lo que llaman los compañeros (sin bucles) | `GET /api/v5/hospitals/last` → solo local |
+| Lo que llama el coordinador (Neithan) | `GET /api/v5/hospitals/last` → solo el hospital local |
+| Flujo medido en este experimento | `GET /api/v5/hospitals/:id` → local + `last` de cada compañero |
 | Salud (liveness/readiness) | `GET /health` |
+
+Diagrama del flujo de las tres API: [README de Phol, diagrama de arquitectura multicloud](https://github.com/PholCast/biblio-express/blob/main/README.md#diagrama-de-arquitectura-multicloud).
+
+| Integrante | Fallo | Métrica | Patrones |
+|---|---|---|---|
+| Neithan | Latencia saliente hacia biblio-express (`x-peer-latency-ms: 2000`) | p95 del flujo, umbral 800 ms | los declara en su repositorio |
+| Daniela | Indisponibilidad de biblio-express, 503 sostenido 120 s | tasa de error del flujo ≤ 1 % en la ventana de fallo | degradación a 200 y circuit breaker |
+| Phol | Agotamiento del pool de PostgreSQL | presupuesto de error, umbral 100 % | los declara en su repositorio |
 
 `/api/v5` repite el JSON de v2 (local y `peers`, sin `bed_capacity`: eso queda solo en v4). `GET /` lista estos endpoints. Acepta `x-trace-id` y `traceparent`, los devuelve y los propaga a los peers.
 
@@ -194,6 +202,8 @@ El interruptor responde `503` en lugar de llamar al peer elegido. Solo afecta la
 | Variable de entorno | `CHAOS_DEPENDENCY_5XX=biblio-express` y `CHAOS_DEPENDENCY_5XX_RATE=1` |
 | Reversión | dejar de enviar la cabecera, `DELETE /chaos/dependency-5xx`, o el TTL de Redis |
 
+Antes del gate del 16 de noviembre de 2026 a las 22:53 UTC se probó la reversión: un `GET` con `x-fault-mode: dependency-down` respondió 503 y el `GET` siguiente, sin esa cabecera, respondió 200. El fallo es por petición. `DELETE /chaos/dependency-5xx` apaga el interruptor guardado en Redis; si el proceso muere, la clave vence a los 180 s.
+
 El token está en Secret Manager (`hospitaline-chaos-token`): `terraform -chdir=terraform/gke output -raw chaos_token`. La duración máxima es 900 s. Cada `503` inyectado suma en `hospitaline_chaos_injected_faults_total` y marca el span con `chaos.injected=true`.
 
 Herramienta declarativa: **Chaos Toolkit**. Chaos Mesh no puede inyectar fallos HTTP ni de red en Autopilot porque su daemon necesita contenedores privilegiados y `hostPID`, que GKE Warden rechaza.
@@ -220,7 +230,15 @@ Perfil `perfil-comun-v1` de Phol, el mismo en las dos rondas: [load/profile.json
 
 Sin la cabecera de resiliencia, el 503 inyectado responde 503 en el flujo (cascada). Con ella, el flujo responde 200, el peer sale `live: false` y, tras 5 fallos, el circuit breaker deja de llamar a biblio-express durante 30 s. Un 503 real, sin la cabecera de fallo, sigue degradando como antes. El workflow es [`.github/workflows/chaos-rounds.yml`](.github/workflows/chaos-rounds.yml). El secreto `PHOL_REPO_TOKEN` solo lee el repositorio de Phol.
 
-Medido el 15 de noviembre de 2026 contra GKE, con el mismo perfil. Estado estable (fase baseline): error 0 % y p95 alrededor de 140–160 ms. En la ventana de fallo la tasa de error pasó de 100 % (3835 peticiones, ronda 0, hipótesis refutada) a 0 % (3625 peticiones, ronda 1, hipótesis cumplida). La recuperación volvió a 0 % en las dos rondas. Resúmenes: [`chaos/results/ronda-0.json`](chaos/results/ronda-0.json) y [`chaos/results/ronda-1.json`](chaos/results/ronda-1.json).
+Medido en el chaos gate del 16 de noviembre de 2026, contra GKE, con el mismo perfil. La ronda 0 empezó a las 22:53 UTC y la ronda 1 a las 23:00 UTC.
+
+| Fase | Ronda 0 | Ronda 1 |
+|---|---|---|
+| Baseline | 3206 peticiones, 0 %, p95 69,7 ms | 3262 peticiones, 0 %, p95 51,8 ms |
+| Ventana de fallo | 4342 peticiones, 100 % de error. Hipótesis refutada | 4160 peticiones, 0 % de error, p95 94,0 ms. Hipótesis cumplida |
+| Recuperación | 1642 peticiones, 0 % | 1676 peticiones, 0 % |
+
+Esos totales son los de los artefactos `k6-summary-ronda-0` y `k6-summary-ronda-1`. Resúmenes: [`chaos/results/ronda-0.json`](chaos/results/ronda-0.json) y [`chaos/results/ronda-1.json`](chaos/results/ronda-1.json). Ejecuciones: [ronda 0](https://github.com/Dhani-dev/HospitalineD/actions/runs/43974346813) y [ronda 1](https://github.com/Dhani-dev/HospitalineD/actions/runs/43975300490).
 
 ## Seguimiento #3 — Canary Deployments
 
