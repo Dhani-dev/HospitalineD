@@ -157,7 +157,7 @@ export class HttpExternalEntitiesClient implements ExternalEntitiesClient {
         attributes: {
           "peer.service": service,
           "peer.entity": entity,
-          "cloud.provider": service === "biblio-express" ? "azure" : "aws"
+          "cloud.provider": service === "biblio-express" ? "gcp" : "aws"
         }
       },
       async (span) => {
