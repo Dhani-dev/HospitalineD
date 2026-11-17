@@ -29,7 +29,11 @@ gd_canary_flow() {
 gd_check_stop() {
   if [ -f security-chaos/STOP ] || [ "${GAMEDAY_STOP:-0}" = 1 ]; then
     gd_log aborted stop_switch triggered
-    ./rollback.sh
+    if [ -n "${GD_DIR:-}" ]; then
+      (cd "$GD_DIR" && ./rollback.sh)
+    else
+      ./rollback.sh
+    fi
     exit 99
   fi
 }
