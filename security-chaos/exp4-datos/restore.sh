@@ -41,7 +41,7 @@ printf '%s\n' "$LIST" | while IFS= read -r object; do
   dest="gs://${BUCKET}/${DEST_PREFIX}${name}"
   case "$SOURCE" in
     softdelete)
-      gcloud storage restore --allow-overwrite "$object" >/dev/null
+      gcloud storage restore "$object" >/dev/null
       ;;
     copy)
       gcloud storage cp "gs://${COPY_BUCKET}/receipts/${name}" "$dest" >/dev/null
