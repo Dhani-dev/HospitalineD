@@ -25,3 +25,11 @@ security-chaos/exp2-segmentacion/steady-state.sh
 Escribe `security-chaos/evidence/exp2/estado-estable.json`.
 
 El interruptor de parada es el archivo `security-chaos/STOP` o la variable `GAMEDAY_STOP=1`.
+
+Desde la raíz del repo, sin inyectar hasta la ventana de la ronda:
+
+```bash
+security-chaos/exp2-segmentacion/inject.sh 0
+security-chaos/exp2-segmentacion/measure.sh 0
+security-chaos/exp2-segmentacion/stop.sh
+```
