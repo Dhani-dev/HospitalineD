@@ -1,16 +1,55 @@
 # Hospitaline
 
-API REST para la gestión de **hospitales, doctores y pacientes**, construida con **Node.js, Fastify, TypeScript y PostgreSQL**. El proyecto incluye **Docker**, **GKE**, **Cloud SQL** y, en Seguimiento #2, reuso HTTP de entidades de otras nubes más una **caché distribuida Redis**.
+API REST para la gestión de **hospitales, doctores y pacientes**, construida con **Node.js, Fastify, TypeScript y PostgreSQL**. El flujo de esta entrega corre en **GKE Autopilot**, con **Cloud SQL**, **Redis** en el clúster y el bucket de comprobantes del game day.
 
-- Test / staging: https://hospitaline-dev.onrender.com
-- Producción: https://hospitaline.onrender.com
-- GCP con Terraform (Cloud Run, Cloud SQL, Memorystore, Artifact Registry, Secret Manager): [`terraform/README.md`](terraform/README.md)
+- Producción del flujo: http://34.121.168.216
+- [Informe DevOps](docs/informe-experimento.pdf)
+- [Informe Defensa en Profundidad](docs/informe_defensa_en_profundidad.pdf)
+- Terraform de GKE, detección y comprobantes: [`terraform/gke`](terraform/gke/)
 
 ## Arquitectura multicloud
 
-Hospitaline es la nube GCP. Consume por HTTP el último `users` de biblio-express (Cloud Run en GCP) y el último `entrenador` de Pokenetes (AWS). La caché Redis es de esta nube. La cola y Object Storage no. Neithan opera AWS, Daniela opera GKE y Phol opera biblio-express.
+Hospitaline es la nube GCP. Consume por HTTP el último `users` de biblio-express (Cloud Run en GCP) y el último `entrenador` de Pokenetes (AWS). La caché Redis es de esta nube. Neithan opera AWS, Daniela opera GKE y Phol opera biblio-express.
 
 ![Arquitectura multicloud AWS, GCP y Azure](docs/arquitectura-multicloud.jpg)
+
+## Caos de Seguridad: game day de defensa en profundidad
+
+Game day sobre la misma arquitectura multinube del énfasis de DevOps, para comprobar experimentalmente si los controles detectan, contienen y resisten. La métrica es la eficacia de los controles. Cuatro experimentos, dos rondas cada uno: la ronda 0 con los controles tal como estaban y la ronda 1 tras las mejoras. En este repositorio, Daniela hace el experimento 2 y los pasos de datos del experimento 4.
+
+- Reglas de compromiso, inventario y riesgos residuales: [`docs/gameday/`](docs/gameday/)
+- Trazabilidad a ISO 27001:2022, NIST 800-53, NIST 800-207, ATT&CK y D3FEND: [`docs/gameday/trazabilidad.md`](docs/gameday/trazabilidad.md)
+- Experimentos como código: [`security-chaos/`](security-chaos/)
+- Los otros dos integrantes: [Pokenetes-API](https://github.com/Enedev/Pokenetes-API) (Neithan, Exp. 1) y [biblio-express](https://github.com/PholCast/biblio-express) (Phol, Exp. 3)
+
+### Diagrama por capas
+
+Puntos de inyección **E1–E4**, fronteras de confianza (cada recuadro rojo discontinuo es una nube y un propietario) y puntos de recolección de telemetría **T1–T4**.
+
+![Arquitectura de seguridad del game day: tres nubes, cinco capas, puntos de inyección, fronteras de confianza y telemetría](docs/diagramas/arquitectura-seguridad-gameday.png)
+
+### Trazabilidad control, experimento y marco
+
+Cada control bajo prueba se relaciona con su experimento, la técnica emulada, su contramedida y los marcos de referencia. Las filas de Daniela, con nombre exacto y URL, están en [`docs/gameday/trazabilidad.md`](docs/gameday/trazabilidad.md). ATT&CK consultado: v20.1, el 2026-11-17. T1485.001 existe y no se emuló.
+
+| Exp. | Control | ATT&CK / ATLAS | D3FEND | ISO 27001:2022 A | NIST 800-53 r5 | NIST 800-207 | R0 | R1 |
+|---|---|---|---|---|---|---|---|---|
+| 1 (Neithan) | Rol `pokenetes-api-instance` y `GetSecretValue` solo vía VPC endpoint | T1552.005 (no detectada), T1078.004 (detectada) | D3-AZET | A.5.15, A.5.16, A.8.2 | AC-3, AC-6, IA-9 | Mínimo privilegio; verificación continua | Refutada. Secreto leído, sin alarma | Cumplida. Lectura denegada a los 17 s; alarma a los 155 s |
+| 1 | Lectura de Secrets Manager | T1555.006 (detectada) | D3-AZET | A.5.17, A.8.5 | IA-5, AC-6 | Mínimo privilegio | `GetSecretValue` permitida | Denegada en la pasada medida |
+| 1 | Enumeración iam, s3 y ec2 | T1580 (no detectada) | — | A.8.2 | AC-6 | Mínimo privilegio | Denegada | Denegada |
+| 1 | Señuelo `backup-admin` | Apoya T1555.006 | D3-DUC | A.5.17 | SC-26 | — | No existía | Lo leyó la pasada previa; alarma a las 01:20:03Z |
+| 2 (Daniela) | NetworkPolicy y denegación por defecto en `hospitaline-prod` | T1610, T1046, T1071.001 | D3-NI, D3-ITF, D3-OTF, D3-NTA | A.8.20–A.8.23 | AC-4, SC-7, SC-7(5), CM-7 | Microsegmentación | Refutada. Redis y salida abiertos; cobertura 0/3 | Confirmada. `gd2-netpol-deny` a los 22 s; cobertura 3/3 |
+| 3 (Phol) | Logging, alertas y asistente SOC | T1685.002, T1685, AML.T0051.001 | D3-PM | A.8.15, A.8.16, A.8.17, A.5.25, A.5.28 | AU-6, AU-9, AU-12, SI-4 | Verificación continua | Refutada. Sin señal; cobertura 1/3 | Confirmada. `gd3-telemetry-tamper` a los 22 s; cobertura 3/3 |
+| 4 (grupal) | Retención del bucket, auditoría `DATA_WRITE` y copia aislada | T1485 | D3-RF, D3-FIM | A.8.13, A.5.29, A.5.30, A.8.10 | CP-9, CP-10, SI-7, SC-28 | Protección del recurso; mínimo privilegio | Refutada. RTO 2075 s (> 30 min); sin alerta | Confirmada. Principal RPO/RTO 0; alerta a los 444 s; copia RTO 1369 s |
+
+### Resultados (ronda 0 a ronda 1)
+
+| Exp. | Capa | Responsable | Ronda 0 | Ronda 1 |
+|---|---|---|---|---|
+| 1 | Identidad de máquina | Neithan | Sin alarma; MTTC no contenido | MTTD 155 s, MTTC 17 s; cobertura 2/4 |
+| 2 | Exposición y segmentación | Daniela | Sin alerta; cobertura 0/3 | MTTD 22 s, MTTC 114 s; cobertura 3/3 |
+| 3 | Telemetría y capa de IA | Phol | Sin señal; cobertura 1/3 | MTTD 22 s, MTTC 79 s; cobertura 3/3 |
+| 4 | Resiliencia de datos | Los tres | RTO 34 min 35 s, RPO 20 min 33 s; sin alerta | Principal RPO/RTO 0; alerta a 444 s; copia RTO 22 min 49 s |
 
 ---
 
@@ -18,20 +57,10 @@ Hospitaline es la nube GCP. Consume por HTTP el último `users` de biblio-expres
 
 | Rama | Entorno | Coverage mínimo |
 |---|---|---:|
-| `dev` | Test / staging | ≥ 60% |
-| `main` | Producción | ≥ 85% |
+| `dev` | Test | ≥ 60% |
+| `main` | Producción en GKE | ≥ 85% |
 
-Flujo:
-
-```text
-dev → pipeline de test → Render Test
-                    ↓
-             merge a main
-                    ↓
-          pipeline de producción
-                    ↓
-             Render Production
-```
+El flujo de `main` se publica en GKE (`hospitaline-gke`, namespace `hospitaline-prod`), no en un hosting aparte.
 
 ---
 
@@ -40,12 +69,12 @@ dev → pipeline de test → Render Test
 - Node.js 22
 - TypeScript
 - Fastify
-- Supabase / PostgreSQL
+- PostgreSQL en Cloud SQL
 - Zod
 - Vitest + V8 Coverage
 - Docker + Docker Compose
 - GitHub Actions
-- Render
+- GKE Autopilot, Redis y Cloud Monitoring
 
 ---
 
@@ -158,7 +187,9 @@ El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` 
 | Flujo medido en este experimento | `GET /api/v5/hospitals/:id` → local + `last` de cada compañero |
 | Salud (liveness/readiness) | `GET /health` |
 
-Diagrama del flujo de las tres API: [diagrama del flujo, puntos de inyección y medición](https://github.com/PholCast/biblio-express#diagrama-del-flujo-puntos-de-inyección-y-medición).
+![Arquitectura del flujo de caos con los puntos de inyección, el radio de impacto y los puntos de medición](docs/diagramas/arquitectura-flujo-caos.png)
+
+El flujo síncrono entra por `GET /api/v5/flujo` de Neithan. La coordinadora lee su último entrenador y llama a biblio-express y a `GET /api/v5/hospitals/last` de Hospitaline. El fallo de Daniela (F2) está en `GET /api/v5/hospitals/:id`: el cliente saliente responde 503 en lugar de llamar a biblio-express. No actúa sobre v1–v4, la base de datos ni la llamada a Pokenetes. La métrica M2 se mide sobre `/api/v5/hospitals/:id`. La cabecera `x-trace-id` y el `traceparent` viajan en las llamadas, y cada API devuelve su `span-id`.
 
 | Integrante | Fallo | Métrica | Patrones |
 |---|---|---|---|
@@ -187,7 +218,7 @@ Se ponen en [`k8s/configmap.yaml`](k8s/configmap.yaml) y se aplican con `kubectl
 
 Evidencia: `kubectl get deploy,pods,hpa,pdb -n hospitaline-prod` y `kubectl describe deployment hospitaline-api -n hospitaline-prod`.
 
-Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh v5.0.4`.
+Encendido completo (Cloud SQL, IP, imagen, Expand y manifiestos): `./scripts/gke/up.sh`. La imagen que atiende el flujo es `hospitaline-api:v5.1.1`.
 
 Se conserva de la entrega #2: GKE, Cloud SQL `hospitaline-db` con su proxy, Redis en el clúster, Secret Manager y Grafana Cloud. Cloud Run y el canary de la entrega #3 no participan en este flujo.
 
@@ -239,6 +270,28 @@ Medido en el chaos gate del 16 de noviembre de 2026, contra GKE, con el mismo pe
 | Recuperación | 1642 peticiones, 0 % | 1676 peticiones, 0 % |
 
 Esos totales son los de los artefactos `k6-summary-ronda-0` y `k6-summary-ronda-1`. Resúmenes: [`chaos/results/ronda-0.json`](chaos/results/ronda-0.json) y [`chaos/results/ronda-1.json`](chaos/results/ronda-1.json). Ejecuciones: [ronda 0](https://github.com/Dhani-dev/HospitalineD/actions/runs/43974346813) y [ronda 1](https://github.com/Dhani-dev/HospitalineD/actions/runs/43975300490).
+
+### Métricas en Grafana Cloud
+
+El tablero conjunto tiene una fila por integrante, con la ventana de inyección y la métrica objetivo de las dos rondas. Las horas del tablero están en UTC, 16 de noviembre de 2026.
+
+| Fila | Rango con las dos rondas |
+|---|---|
+| Neithan | [17:00 a 17:30](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T17:00:00.000Z&to=2026-11-16T17:30:00.000Z&timezone=utc) |
+| Daniela | [22:50 a 23:10](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T22:50:00.000Z&to=2026-11-16T23:10:00.000Z&timezone=utc) |
+| Phol | [05:40 a 06:40](https://vibrantkinkajou470.grafana.net/d/datbmrl/caos-del-grupo-e28094-tres-nubes?from=2026-11-16T05:40:00.000Z&to=2026-11-16T06:40:00.000Z&timezone=utc) |
+
+En la fila de Neithan la ronda 0 sube el p95 a unos 2 s entre 17:06 y 17:08. En la ronda 1 el p95 queda bajo la línea de 800 ms.
+
+![Fila de Neithan en Grafana: latencia p95 del balanceador y de la app, peticiones y errores 5xx, y ventana de inyección del fallo](docs/evidencias/grafana-neithan-rondas.png)
+
+En la fila de Daniela el panel de tasa de error sube en la ronda 0 (el máximo dibujado es 91,1 %) y en la ronda 1 se queda en 0 %. El chaos gate, sobre `http_req_failed` de la ventana de fallo, midió 100 % en la ronda 0 y 0 % en la ronda 1.
+
+![Fila de Daniela en Grafana: latencia de GET /api/v5/hospitals, tasa de error del flujo y ventana de inyección del fallo](docs/evidencias/grafana-daniela-rondas.png)
+
+En la fila de Phol las barras rojas marcan la ventana de inyección.
+
+![Fila de Phol en Grafana: ventana de inyección, presupuesto de error, peticiones por clase, latencia p95, conexiones de Cloud SQL y respuestas degradadas](docs/evidencias/grafana-phol-dos-rondas-1.png)
 
 ## Seguimiento #3 — Canary Deployments
 
@@ -773,57 +826,13 @@ npm run build
 npm run test:coverage
  ↓
 coverage ≥ 60%
- ↓
-Deploy Hook de Render
 ```
 
 ### Producción
 
-Se ejecuta con cambios en `main`.
+Se ejecuta con cambios en `main` y exige coverage ≥ 85 %. El servicio que atiende el flujo es el Deployment de GKE en http://34.121.168.216. La imagen vigente del experimento es `hospitaline-api:v5.1.1`.
 
-```text
-Checkout
- ↓
-Node 22
- ↓
-npm ci --force
- ↓
-npm run build
- ↓
-npm run test:coverage
- ↓
-coverage ≥ 85%
- ↓
-Deploy Hook de Render
-```
-
-Si fallan los tests o no se alcanza el coverage mínimo, el despliegue no continúa.
-
-Los secretos de Supabase y Render se almacenan en **GitHub Secrets**.
-
----
-
-## Render
-
-Los servicios desplegados son:
-
-- Test / staging: https://hospitaline-dev.onrender.com
-- Producción: https://hospitaline.onrender.com
-
-Health check:
-
-```bash
-curl https://hospitaline-dev.onrender.com/health
-curl https://hospitaline.onrender.com/health
-```
-
-Ejemplo de endpoint:
-
-```bash
-curl https://hospitaline.onrender.com/api/v1/hospitals
-```
-
-La configuración detallada de Render se encuentra en [`RENDER_SETUP.md`](RENDER_SETUP.md).
+Si fallan los tests o no se alcanza el coverage mínimo, el job no continúa.
 
 ---
 
