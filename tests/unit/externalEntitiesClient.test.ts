@@ -26,6 +26,27 @@ describe("pickLastRecord", () => {
   it("takes the last item from a list", () => {
     expect(pickLastRecord([{ id: 1 }, { id: 2 }])).toEqual({ id: 2 });
   });
+
+  it("keeps biblio trace ids when the users arrive in data", () => {
+    expect(
+      pickLastRecord({
+        apiVersion: "5.0.0",
+        data: [
+          { id: 4, name: "Usuario Sintetico 4" },
+          { id: 5, name: "Usuario Sintetico 5" }
+        ],
+        "x-trace-id": "gd-why-biblio-trace",
+        "trace-id": "cd49a378cd20b5e48a1ceba0f3c3e40c",
+        "span-id": "648b0488818583a4"
+      })
+    ).toEqual({
+      id: 5,
+      name: "Usuario Sintetico 5",
+      "x-trace_id": "gd-why-biblio-trace",
+      "trace-id": "cd49a378cd20b5e48a1ceba0f3c3e40c",
+      "span-id": "648b0488818583a4"
+    });
+  });
 });
 
 describe("HttpExternalEntitiesClient", () => {

@@ -81,10 +81,10 @@ export function pickLastRecord(payload: unknown): ExternalEntity | null {
     const value = payload[key];
     if (Array.isArray(value)) {
       const last = value.at(-1);
-      return isObject(last) ? last : null;
+      return isObject(last) ? withPeerTrace(last, payload) : null;
     }
     if (isObject(value) && key === "data") {
-      return value;
+      return withPeerTrace(value, payload);
     }
   }
 
@@ -93,7 +93,11 @@ export function pickLastRecord(payload: unknown): ExternalEntity | null {
 
 function withPeerTrace(record: ExternalEntity, envelope: ExternalEntity): ExternalEntity {
   const traced: ExternalEntity = { ...record };
-  for (const key of ["x-trace_id", "trace-id", "span-id"] as const) {
+  const traceId = envelope["x-trace_id"] ?? envelope["x-trace-id"];
+  if (traceId != null && traced["x-trace_id"] == null) {
+    traced["x-trace_id"] = traceId;
+  }
+  for (const key of ["trace-id", "span-id"] as const) {
     if (envelope[key] != null && traced[key] == null) {
       traced[key] = envelope[key];
     }
