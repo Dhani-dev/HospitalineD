@@ -1,0 +1,21 @@
+rule=gd4-mass-object-destruction
+mode=positive
+injection=none
+evidence=/Users/dhani/Documents/Hospitaline/security-chaos/evidence/exp4/ronda-1/alerts.json
+checked_at=2026-11-18T05:10:08Z
+evidence_mentions=2
+incidents=[
+  {
+    "name": "projects/project-39d0c894-3885-4211-89d/alerts/0.of5ewy3ku0wx",
+    "state": "CLOSED",
+    "openTime": "2026-11-18T02:29:46Z",
+    "closeTime": "2026-11-18T02:33:14Z"
+  },
+  {
+    "name": "projects/project-39d0c894-3885-4211-89d/alerts/0.of5ctnkvcne0",
+    "state": "CLOSED",
+    "openTime": "2026-11-18T00:58:11Z",
+    "closeTime": "2026-11-18T01:03:32Z"
+  }
+]
+result=PASS linked evidence; alert already fired

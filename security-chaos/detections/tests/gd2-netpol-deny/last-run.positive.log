@@ -1,0 +1,15 @@
+rule=gd2-netpol-deny
+mode=positive
+injection=none
+evidence=/Users/dhani/Documents/Hospitaline/security-chaos/evidence/exp2/ronda-1/alerts.json
+checked_at=2026-11-18T05:10:05Z
+evidence_mentions=1
+incidents=[
+  {
+    "name": "projects/project-39d0c894-3885-4211-89d/alerts/0.of5bxewxuddw",
+    "state": "OPEN",
+    "openTime": "2026-11-18T00:18:58Z",
+    "closeTime": null
+  }
+]
+result=PASS linked evidence; alert already fired
