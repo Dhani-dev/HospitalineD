@@ -6,10 +6,12 @@ integrante lo commitea en el suyo **antes de ejecutar la ronda 0**. La fecha del
 prueba de que el grupo lo aceptó antes de tocar nada.
 
 ## Ventana de ejecución (hora Colombia, UTC−5)
-- Ronda 0: 16:00–17:45 (experimentos 1, 2 y 3 de 16:00 a 17:00; experimento 4 de 17:00 a 17:45).
-- Mejoras y detección: 17:45–21:15.
-- Ronda 1: 21:30–23:15 (experimentos 1, 2 y 3 de 21:30 a 22:30; experimento 4 de 22:30 a 23:15).
-- Fuera de estas franjas no se inyecta ningún fallo.
+La jornada del 17 de noviembre de 2026 fue continua. No se usaron las franjas
+planificadas de 16:00–17:45 ni las de 21:30–23:15.
+
+Horas reales de Daniela:
+- Exp. 2 R0: 14:13–14:29. R1: 20:17–20:19.
+- Exp. 4 R0: 16:14–16:48. R1: 21:22–21:55.
 
 ## Radio de impacto por experimento
 - **Exp. 1 (Neithan):** credenciales temporales del rol `pokenetes-api-instance` y lectura del
