@@ -191,6 +191,12 @@ El orquestador de Pokenetes **aún no está conectado**. `ORCHESTRATOR_API_URL` 
 
 El flujo síncrono entra por `GET /api/v5/flujo` de Neithan. La coordinadora lee su último entrenador y llama a biblio-express y a `GET /api/v5/hospitals/last` de Hospitaline. El fallo de Daniela (F2) está en `GET /api/v5/hospitals/:id`: el cliente saliente responde 503 en lugar de llamar a biblio-express. No actúa sobre v1–v4, la base de datos ni la llamada a Pokenetes. La métrica M2 se mide sobre `/api/v5/hospitals/:id`. La cabecera `x-trace-id` y el `traceparent` viajan en las llamadas, y cada API devuelve su `span-id`.
 
+### Secuencia de `GET /api/v5/flujo`
+
+![Secuencia de GET /api/v5/flujo con el trace id en las tres nubes](docs/diagramas/secuencia-flujo.png)
+
+En la cadena del flujo, Hospitaline responde el hospital local. F2 no está en esa cadena: actúa cuando Hospitaline llama a biblio-express desde `GET /api/v5/hospitals/:id`. En la captura del 16 de noviembre de 2026 las tres API devolvieron el mismo `trace-id` y cada una su `span-id`, con HTTP 200.
+
 | Integrante | Fallo | Métrica | Patrones |
 |---|---|---|---|
 | Neithan | Latencia saliente hacia biblio-express (`x-peer-latency-ms: 2000`) | p95 del flujo, umbral 800 ms | los declara en su repositorio |
