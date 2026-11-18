@@ -124,7 +124,7 @@ resource "google_monitoring_alert_policy" "gd4_mass_object_destruction" {
   conditions {
     display_name = "cinco borrados de comprobantes en 60 s"
     condition_threshold {
-      filter          = "resource.type=\"global\" AND metric.type=\"logging.googleapis.com/user/gd4-mass-object-destruction\""
+      filter          = "resource.type=\"gcs_bucket\" AND metric.type=\"logging.googleapis.com/user/gd4-mass-object-destruction\""
       comparison      = "COMPARISON_GT"
       threshold_value = 4
       duration        = "0s"
