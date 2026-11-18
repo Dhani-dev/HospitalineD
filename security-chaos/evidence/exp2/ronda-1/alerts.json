@@ -1,0 +1,11 @@
+[
+  {
+    "messageId": "23305414238400452",
+    "publishTime": "2026-11-18T01:17:30.529Z",
+    "policy_name": "gd2-netpol-deny",
+    "incident_id": "0.of5bxewxuddw",
+    "state": "open",
+    "incident_started_at": "2026-11-18T00:18:58Z",
+    "filter": "logName=~\"logs/policy-action\" AND jsonPayload.disposition=\"deny\" AND jsonPayload.src.namespace=\"hospitaline-prod\""
+  }
+]
