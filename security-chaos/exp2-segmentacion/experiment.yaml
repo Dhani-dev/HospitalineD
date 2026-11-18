@@ -1,0 +1,75 @@
+id: exp2-segmentacion
+title: Exposición y segmentación del namespace hospitaline-prod
+owner: Daniela
+layer: Red
+control_under_test: segmentación de red del namespace hospitaline-prod tal como está hoy
+adverse_condition: un pod no declarado abre una conexión este-oeste a Redis:6379 y sale a Internet
+hypothesis: >-
+  Dado el control segmentación de red del namespace hospitaline-prod tal como está hoy,
+  cuando un pod no declarado abra una conexión este-oeste a Redis:6379 y salga a Internet,
+  esperamos la señal alerta de conexión denegada / carga no declarada en Cloud Monitoring
+  en ≤ 5 min, y la contención (ruta cortada y pod eliminado) en ≤ 10 min.
+expected_signal: alerta de conexión denegada / carga no declarada en Cloud Monitoring
+t1_minutes: 5
+t2_minutes: 10
+target_metric: cobertura de detección
+observation_window_minutes: 15
+repetitions:
+  ronda_0: 1
+  ronda_1: 1
+attack_techniques:
+  - id: T1610
+    name: Deploy Container
+    catalog: Enterprise ATT&CK v20.1
+    source: https://attack.mitre.org/techniques/T1610/
+    consulted_on: 2026-11-17
+  - id: T1046
+    name: Network Service Discovery
+    catalog: Enterprise ATT&CK v20.1
+    source: https://attack.mitre.org/techniques/T1046/
+    consulted_on: 2026-11-17
+  - id: T1071.001
+    name: "Application Layer Protocol: Web Protocols"
+    catalog: Enterprise ATT&CK v20.1
+    source: https://attack.mitre.org/techniques/T1071/001/
+    consulted_on: 2026-11-17
+d3fend_countermeasures:
+  - id: D3-NI
+    name: Network Isolation
+    catalog: D3FEND ontology 1.6.0
+    source: https://d3fend.mitre.org/technique/d3f:NetworkIsolation/
+    consulted_on: 2026-11-17
+  - id: D3-ITF
+    name: Inbound Traffic Filtering
+    catalog: D3FEND ontology 1.6.0
+    source: https://d3fend.mitre.org/technique/d3f:InboundTrafficFiltering/
+    consulted_on: 2026-11-17
+  - id: D3-OTF
+    name: Outbound Traffic Filtering
+    catalog: D3FEND ontology 1.6.0
+    source: https://d3fend.mitre.org/technique/d3f:OutboundTrafficFiltering/
+    consulted_on: 2026-11-17
+  - id: D3-NTA
+    name: Network Traffic Analysis
+    catalog: D3FEND ontology 1.6.0
+    source: https://d3fend.mitre.org/technique/d3f:NetworkTrafficAnalysis/
+    consulted_on: 2026-11-17
+framework_note: >-
+  Consultado el 2026-11-17. ATT&CK vigente v20.1 (attack.mitre.org/resources/versions).
+  D3FEND ontología 1.6.0 (d3fend.mitre.org/version). La búsqueda inversa
+  d3fend.mitre.org/offensive-technique/attack/T1610 y /T1046 no define artefactos.
+  T1071.001 abre la página oficial, sin listar estas cuatro contramedidas en el HTML.
+  Los cuatro IDs defensivos se citan porque su ficha oficial existe con ese nombre.
+blast_radius: >-
+  Namespace hospitaline-prod. Un pod gd-intruder de vida máxima 30 min.
+  Solo claves Redis con prefijo gd2:. La salida a Internet usa el /health de biblio-express del grupo.
+authorized_resources:
+  - project-39d0c894-3885-4211-89d
+  - gke hospitaline-gke us-central1 namespace hospitaline-prod
+  - http://34.121.168.216
+  - https://biblio-express-final-api-cruuw4ggmq-uc.a.run.app/health
+synthetic_data: claves Redis gd2:marker:<trace_id> con TTL 600 s; sin datos de pacientes
+stop_switch: archivo security-chaos/STOP o variable GAMEDAY_STOP=1
+rollback: >-
+  Borrar el pod gd-intruder, borrar las claves gd2:*, comprobar que no quedan pods
+  con gameday=exp2 y que GET /api/v5/flujo responde.

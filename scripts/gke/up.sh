@@ -36,6 +36,8 @@ psql -v ON_ERROR_STOP=1 --single-transaction -f migrations/004_expand_hospital_b
 kubectl apply -f k8s/secrets/secret-provider-class.yaml -f k8s/secrets/secret-sync.yaml
 kubectl apply -f k8s/configmap.yaml -f k8s/redis.yaml -f k8s/deployment.yaml \
   -f k8s/service.yaml -f k8s/pdb.yaml -f k8s/hpa.yaml
+kubectl apply -f k8s/network-policies/10-api.yaml -f k8s/network-policies/20-redis.yaml \
+  -f k8s/network-policies/00-default-deny.yaml -f k8s/network-policies/network-logging.yaml
 kubectl set image deployment/hospitaline-api hospitaline-api="$IMAGE" -n "$NS"
 kubectl rollout status deployment/hospitaline-redis -n "$NS" --timeout=300s
 kubectl rollout status deployment/hospitaline-api -n "$NS" --timeout=600s

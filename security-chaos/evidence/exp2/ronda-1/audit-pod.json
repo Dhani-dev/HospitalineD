@@ -1,0 +1,9 @@
+[
+  {
+    "timestamp": "2026-11-18T01:16:56.542872Z",
+    "method": "io.k8s.core.v1.pods.create",
+    "principalEmail": "dagudelo0522@gmail.com",
+    "resourceName": "core/v1/namespaces/hospitaline-prod/pods/gd-intruder",
+    "status_code": 0
+  }
+]

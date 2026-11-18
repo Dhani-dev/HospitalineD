@@ -1,0 +1,14 @@
+[
+  {
+    "publishTime": "2026-11-18T02:29:46.699Z",
+    "policy_name": "gd4-mass-object-destruction",
+    "incident_started_at": 1794968986,
+    "note": "apertura"
+  },
+  {
+    "publishTime": "2026-11-18T02:33:14.598Z",
+    "policy_name": "gd4-mass-object-destruction",
+    "incident_started_at": 1794968986,
+    "note": "cierre"
+  }
+]

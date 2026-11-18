@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gd-intruder
+  namespace: hospitaline-prod
+  labels:
+    app: gd-intruder
+    gameday: exp2
+spec:
+  restartPolicy: Never
+  activeDeadlineSeconds: 1800
+  containers:
+    - name: intruder
+      image: redis:7-alpine
+      command: ["sleep", "1800"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi

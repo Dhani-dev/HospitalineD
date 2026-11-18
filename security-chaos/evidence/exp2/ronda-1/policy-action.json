@@ -1,0 +1,9 @@
+[
+  {"timestamp": "2026-11-18T01:17:12.405776654Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"},
+  {"timestamp": "2026-11-18T01:17:19.913371708Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"},
+  {"timestamp": "2026-11-18T01:17:27.418572282Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"},
+  {"timestamp": "2026-11-18T01:17:34.394132050Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"},
+  {"timestamp": "2026-11-18T01:17:41.900471113Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"},
+  {"timestamp": "2026-11-18T01:17:49.408415736Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"},
+  {"timestamp": "2026-11-18T01:17:56.789263723Z", "pod": "gd-intruder", "namespace": "hospitaline-prod", "disposition": "deny", "direction": "egress", "protocol": "udp", "dest_port": 53, "dest": "169.254.20.10"}
+]

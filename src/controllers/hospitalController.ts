@@ -4,6 +4,7 @@ import { ApiVersion, hasBedCapacity, hidesPeersOnRead, versionFields } from "../
 import { presentHospital } from "../http/hospitalContract";
 import { recordHospitalRegistered } from "../observability/metrics";
 import { traceIdentifiers } from "../observability/trace-context";
+import { ReceiptWriter, scheduleFlowReceipt } from "../receipts/flowReceipts";
 import { IHospitalService } from "../services/contracts";
 import { Hospital } from "../types/entities";
 import { handleControllerError } from "./baseController";
@@ -50,7 +51,8 @@ const hospitalQuerySchema = z.object({
 export class HospitalController {
   constructor(
     private readonly hospitalService: IHospitalService,
-    private readonly version: ApiVersion = "v1"
+    private readonly version: ApiVersion = "v1",
+    private readonly receipts: ReceiptWriter | null = null
   ) {}
 
   private present = (hospital: Hospital) => presentHospital(hospital, this.version);
@@ -75,6 +77,9 @@ export class HospitalController {
   getLast = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const local = await this.hospitalService.getLast();
+      scheduleFlowReceipt(request.traceId, this.receipts, (error) => {
+        request.log.error({ err: error }, "flow receipt write failed");
+      });
       return reply.status(200).send({
         api: "hospitaline",
         ...versionFields(this.version),
