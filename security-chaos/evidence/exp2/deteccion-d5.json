@@ -1,0 +1,18 @@
+{
+  "checked_on": "2026-11-18T00:28:00Z",
+  "default_deny": "applied",
+  "health": 200,
+  "flow": 200,
+  "policy_action_fields": {
+    "log_name": "logs/policy-action",
+    "disposition": "jsonPayload.disposition",
+    "namespace": "jsonPayload.src.namespace"
+  },
+  "alerts": [
+    {"name": "gd2-netpol-deny", "state": "OPEN", "open_time": "2026-11-18T00:18:58Z"},
+    {"name": "gd2-undeclared-workload", "state": "OPEN", "open_time": "2026-11-18T00:22:05Z"}
+  ],
+  "gd4_metric": "gd4-mass-object-destruction",
+  "gd4_denied_deletes_logged": 11,
+  "gd4_alert": "not open at the last check; the delete audit entries match the metric filter"
+}

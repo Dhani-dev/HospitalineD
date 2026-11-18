@@ -1,7 +1,26 @@
 variable "alert_email" {
   description = "Correo del canal de alertas del game day. Vacío: no se crean el canal ni las políticas."
   type        = string
-  default     = ""
+  default     = "dagudelo0522@gmail.com"
+}
+
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+resource "google_pubsub_topic" "gd_alerts" {
+  name = "gd-alerts"
+}
+
+resource "google_pubsub_subscription" "gd_alerts_pull" {
+  name  = "gd-alerts-pull"
+  topic = google_pubsub_topic.gd_alerts.id
+}
+
+resource "google_pubsub_topic_iam_member" "monitoring_publisher" {
+  topic  = google_pubsub_topic.gd_alerts.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-monitoring-notification.iam.gserviceaccount.com"
 }
 
 resource "google_logging_metric" "gd4_mass_object_destruction" {
@@ -28,6 +47,18 @@ resource "google_monitoring_notification_channel" "gameday_email" {
   }
 }
 
+resource "google_monitoring_notification_channel" "gameday_pubsub" {
+  count        = var.alert_email == "" ? 0 : 1
+  display_name = "gd-alerts"
+  type         = "pubsub"
+
+  labels = {
+    topic = google_pubsub_topic.gd_alerts.id
+  }
+
+  depends_on = [google_pubsub_topic_iam_member.monitoring_publisher]
+}
+
 resource "google_monitoring_alert_policy" "gd2_netpol_deny" {
   count        = var.alert_email == "" ? 0 : 1
   display_name = "gd2-netpol-deny"
@@ -39,12 +70,15 @@ resource "google_monitoring_alert_policy" "gd2_netpol_deny" {
       filter = join(" AND ", [
         "logName=~\"logs/policy-action\"",
         "jsonPayload.disposition=\"deny\"",
-        "resource.labels.namespace_name=\"hospitaline-prod\"",
+        "jsonPayload.src.namespace=\"hospitaline-prod\"",
       ])
     }
   }
 
-  notification_channels = [google_monitoring_notification_channel.gameday_email[0].id]
+  notification_channels = [
+    google_monitoring_notification_channel.gameday_email[0].id,
+    google_monitoring_notification_channel.gameday_pubsub[0].id,
+  ]
 
   alert_strategy {
     notification_rate_limit {
@@ -70,7 +104,10 @@ resource "google_monitoring_alert_policy" "gd2_undeclared_workload" {
     }
   }
 
-  notification_channels = [google_monitoring_notification_channel.gameday_email[0].id]
+  notification_channels = [
+    google_monitoring_notification_channel.gameday_email[0].id,
+    google_monitoring_notification_channel.gameday_pubsub[0].id,
+  ]
 
   alert_strategy {
     notification_rate_limit {
@@ -99,5 +136,8 @@ resource "google_monitoring_alert_policy" "gd4_mass_object_destruction" {
     }
   }
 
-  notification_channels = [google_monitoring_notification_channel.gameday_email[0].id]
+  notification_channels = [
+    google_monitoring_notification_channel.gameday_email[0].id,
+    google_monitoring_notification_channel.gameday_pubsub[0].id,
+  ]
 }
