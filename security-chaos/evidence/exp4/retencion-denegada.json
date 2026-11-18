@@ -1,0 +1,12 @@
+{
+  "checked_on": "2026-11-18T00:06:00Z",
+  "bucket": "project-39d0c894-3885-4211-89d-gd4-flow-receipts",
+  "retention_period_seconds": 86400,
+  "is_locked": false,
+  "delete_result": "denied",
+  "object": "receipts/gd4-d5-policy-1.json",
+  "log_name": "projects/project-39d0c894-3885-4211-89d/logs/cloudaudit.googleapis.com%2Fdata_access",
+  "method": "storage.objects.delete",
+  "status_code": 7,
+  "note": "El borrado denegado por retención aparece en el audit log DATA_WRITE (data_access)."
+}
